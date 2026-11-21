@@ -84,9 +84,14 @@ def decide(route: str, text: str, questions: dict[str, dict], fixture_id: str | 
         qt = q["type"]
         if qt == "noul":
             if fx:
-                yes = bool(truth.get(q.get("fixture_key") or key, truth.get("is_hazard", False)))
-                p = truth.get("advisory_p", 0.86 if yes else 0.12)
-                p = p if yes else min(p, 0.2)
+                fk = q.get("fixture_key") or key
+                if fk == "needs_more_evidence":
+                    yes = truth.get("vision_verdict") == "unsure"
+                    p = 0.7 if yes else 0.15
+                else:
+                    yes = bool(truth.get(fk, False))
+                    p = truth.get("advisory_p", 0.86) if fk == "glass" else (0.88 if yes else 0.12)
+                    p = p if yes else min(p, 0.2)
             else:
                 topic = q.get("fixture_key") or key
                 yes = kw_hazard == "glass" if "glass" in topic else kw_hazard != "other"
