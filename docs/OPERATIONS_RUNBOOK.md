@@ -21,9 +21,9 @@ select workflow, status, count(*) from agent_runs group by 1,2;
 -- pending approvals that will expire
 select id, action, expires_at from approval_requests where status='pending' order by expires_at;
 -- dead-lettered jobs
-select kind, last_error, attempts from jobs where status='dead';
+select kind, last_error, attempts from jobs where status='dead_letter';
 -- model fallbacks today
-select route, model, fallback, count(*) from model_calls where created_at > now()-interval '1 day' group by 1,2,3;
+select route, model, mode, count(*) from model_calls where at > now()-interval '1 day' group by 1,2,3;
 ```
 
 ## Incidents
@@ -35,12 +35,12 @@ select route, model, fallback, count(*) from model_calls where created_at > now(
 | Run stuck `interrupted` | waiting on a human | Approve or deny in Console → Agents. Expired approvals are swept by the worker. |
 | Resume rejected "payload changed" | the plan was edited after approval | Expected. Re-plan, which creates a new approval. |
 | Twin mission `safety_paused` | jam, lost link or operator stop | A supervisor resumes from Missions once the controller allows it. Technicians clear jams first. |
-| Job in `dead` | 5 failed attempts | Read `job_attempts.error`, fix, then `update jobs set status='queued', attempts=0 where id=…` |
+| Job in `dead_letter` | `max_attempts` (default 5) reached | Read `job_attempts.error`, fix, then `update jobs set status='pending', attempts=0 where id=…` |
 | Glasses reports rejected 401 | clock skew > 300 s or revoked device | Sync device time; re-pair in Settings |
 
 ## Emergency stop
 
-Supervisors and admins: Console → Fleet → **Stop all**, or `POST /v1/tools/request_operator_stop` per robot. A stop is always permitted. Resume requires a supervisor and a clear controller.
+Anyone holding `fleet.stop` in the mission's jurisdiction (see RBAC_MATRIX): Console → Missions → **Stop / abort mission**, or `POST /v1/missions/{id}/stop`. The local safety controller can also stop on its own at any time. Resume requires a supervisor and a clear controller.
 
 ## Hosted Supabase (when restored)
 
