@@ -10,7 +10,7 @@ from ..auth import Principal
 from ..graphs import copilot, fleet
 from ..policy import approvals
 from ..policy.engine import check
-from ..storage import LocalEvidenceStore
+from ..storage import evidence_store
 from .common import jurisdiction_for, principal, staff
 
 router = APIRouter(prefix="/v1")
@@ -81,7 +81,7 @@ def ticket(ref: str, p: Principal = Depends(principal)):
     t["work_orders"] = db.all_rows("select id::text, kind, status, mission_id::text, cell_id from work_orders where ticket_id=%s", (t["id"],))
     t["reports"] = []
     if check(p, t["jurisdiction_id"], "evidence.view").allowed:
-        store = LocalEvidenceStore()
+        store = evidence_store()
         for r in db.all_rows("""select r.id::text, r.source_kind, r.received_at, r.accuracy_m, r.match_status, r.match_distance_m,
                                        r.cell_id, r.note, r.hazard_claimed, r.local_detector, l.link_kind, l.rule_score, l.vector_score,
                                        (select json_agg(json_build_object('path', m.storage_path, 'fixture_id', m.fixture_id, 'mime', m.mime_type))

@@ -129,3 +129,12 @@ def test_copilot_has_short_term_memory_per_session():
     copilot.ask(P("nyc_operator"), NYC, "Show open glass tickets", session="mem-test")
     r = copilot.ask(P("nyc_operator"), NYC, "What conditions stop the robots?", session="mem-test")
     assert r["turns"] == 2
+
+
+def test_retrieval_embeds_missing_chunks_once():
+    from lanekeeper import knowledge
+    db.one("update knowledge_chunks set embedding = null, embed_model = null returning 1")
+    hits = knowledge.retrieve("11111111-1111-4111-8111-111111111111", "when must a robot stop")
+    assert hits and db.one("select count(*) n from knowledge_chunks where embedding is null")["n"] == 0
+    from lanekeeper.models.router import ModelRouter
+    assert knowledge.ensure_embedded(ModelRouter()) == 0

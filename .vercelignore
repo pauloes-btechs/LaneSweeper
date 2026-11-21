@@ -1,0 +1,10 @@
+# never uploaded to Vercel
+vendor-private/
+Microlumin_Ship/
+.lk/
+demo-output/
+.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/node_modules/

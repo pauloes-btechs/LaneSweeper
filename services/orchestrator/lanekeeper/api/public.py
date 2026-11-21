@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import ValidationError
 
 from .. import db, devices, workflows
@@ -12,7 +12,7 @@ from ..auth import Principal
 from ..graphs import glasses
 from ..graphs.state import InboundReport
 from ..models.offline import fixtures
-from ..storage import REPO_ROOT, LocalEvidenceStore
+from ..storage import REPO_ROOT, EvidenceError, EvidenceStore, evidence_store
 from .common import principal
 
 router = APIRouter()
@@ -160,10 +160,11 @@ async def device_hud(device_id: str, request: Request, since: str | None = None)
 
 @router.get("/v1/evidence/{path:path}")
 def evidence(path: str, exp: int, sig: str):
-    if not LocalEvidenceStore.check_url(path, exp, sig):
+    if not EvidenceStore.check_url(path, exp, sig):
         raise HTTPException(403, "expired or invalid link")
-    root = LocalEvidenceStore().root.resolve()
-    target = (root / path).resolve()
-    if root not in target.parents or not target.is_file():
-        raise HTTPException(404, "not found")
-    return FileResponse(target)
+    try:
+        data = evidence_store().get(path)
+    except EvidenceError as e:
+        raise HTTPException(404, "not found") from e
+    mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(path.rsplit(".", 1)[-1], "application/octet-stream")
+    return Response(data, media_type=mime, headers={"cache-control": "private, no-store"})

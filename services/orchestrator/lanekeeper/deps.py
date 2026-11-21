@@ -4,11 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .models.router import ModelRouter
-from .storage import LocalEvidenceStore
+from .storage import EvidenceStore, evidence_store
 
 
 @dataclass
 class Deps:
     router: ModelRouter = field(default_factory=ModelRouter)
-    store: LocalEvidenceStore = field(default_factory=LocalEvidenceStore)
+    store: EvidenceStore = field(default_factory=evidence_store)
     guest_reports_per_hour: int = 12
