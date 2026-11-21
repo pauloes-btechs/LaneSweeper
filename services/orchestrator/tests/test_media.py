@@ -151,3 +151,17 @@ def test_video_falls_back_to_sync_when_background_unsupported(fresh_db, monkeypa
 
     assert media.generate("pov-day-clear", None, client=mock(handler))["status"] == "ready"
     assert [b.get("background") for b in bodies] == [True, None]
+
+
+def test_fit_video_reencodes_over_limit_clip(tmp_path):
+    import subprocess
+
+    import imageio_ffmpeg
+    src = tmp_path / "noise.mp4"
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",  # noqa: S603
+                    "testsrc2=size=640x360:rate=30",
+                    "-t", "2", "-c:v", "libx264", "-qp", "0", str(src)], check=True)
+    raw = src.read_bytes()
+    assert media.fit_video(raw, limit=len(raw) + 1) is raw          # under the limit: untouched
+    out = media.fit_video(raw, limit=len(raw) // 2)
+    assert len(out) <= len(raw) // 2 and out[4:8] == b"ftyp"
