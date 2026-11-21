@@ -58,6 +58,14 @@ def _secret(name: str, purpose: str) -> str:
     return "change-me-dev-only"
 
 
+def demo_identities_allowed() -> bool:
+    """Demo sign-in-as-any-role. Local: LK_DEMO_MODE=1. With real Supabase auth configured (hosted), it also needs
+    LK_DEMO_ALLOW_HOSTED=1, an explicit owner decision (here: the site sits behind Vercel Authentication)."""
+    if os.environ.get("LK_DEMO_MODE") != "1":
+        return False
+    return not os.environ.get("SUPABASE_JWT_SECRET") or os.environ.get("LK_DEMO_ALLOW_HOSTED") == "1"
+
+
 def session_mode(url: str) -> str:
     """Use Supabase's pooler in *session* mode (port 5432): a client keeps its server connection, so session settings
     (the checkpointer's search_path) and prepared statements work. Transaction mode (6543) supports neither."""

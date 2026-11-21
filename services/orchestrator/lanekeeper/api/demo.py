@@ -2,13 +2,11 @@
 Seeded identities get dev tokens (identity only; roles still come from memberships). Never deploy with this on."""
 from __future__ import annotations
 
-import os
-
 from fastapi import APIRouter, HTTPException
 
 from .. import db
 from ..auth import mint_dev_token
-from ..config import get_settings
+from ..config import demo_identities_allowed
 
 router = APIRouter(prefix="/v1/demo")
 
@@ -26,7 +24,7 @@ SEEDED = {
 
 
 def enabled() -> bool:
-    return os.environ.get("LK_DEMO_MODE") == "1" and not get_settings().supabase_jwt_secret
+    return demo_identities_allowed()
 
 
 @router.get("/identities")

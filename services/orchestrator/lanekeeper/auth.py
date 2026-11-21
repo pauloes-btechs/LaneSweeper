@@ -94,7 +94,8 @@ def reload(principal: Principal) -> Principal:
 def mint_dev_token(user_id: str, ttl_s: int = 8 * 3600) -> str:
     """Local development only: a token signed with LK_SIGNING_SECRET. Carries identity, not roles."""
     s = get_settings()
-    if s.supabase_jwt_secret:
+    from .config import demo_identities_allowed
+    if s.supabase_jwt_secret and not demo_identities_allowed():
         raise AuthError("refusing to mint dev tokens when a real Supabase JWT secret is configured")
     now = int(time.time())
     return jwt.encode({"sub": user_id, "aud": "authenticated", "iss": DEV_ISSUER, "iat": now, "exp": now + ttl_s,

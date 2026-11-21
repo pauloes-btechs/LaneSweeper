@@ -87,3 +87,15 @@ def test_secrets_derive_from_service_key_and_never_default_when_hosted(monkeypat
     assert len(a) == 64 and a != b and "svc-key" not in a
     monkeypatch.setenv("LK_SIGNING_SECRET", "explicit")
     assert config._secret("LK_SIGNING_SECRET", "signing") == "explicit"
+
+
+def test_hosted_demo_identities_need_an_explicit_second_flag(monkeypatch):
+    for k in ("LK_DEMO_MODE", "SUPABASE_JWT_SECRET", "LK_DEMO_ALLOW_HOSTED"):
+        monkeypatch.delenv(k, raising=False)
+    assert not config.demo_identities_allowed()
+    monkeypatch.setenv("LK_DEMO_MODE", "1")
+    assert config.demo_identities_allowed()                     # local demo
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", "real-project-secret")
+    assert not config.demo_identities_allowed()                 # hosted: off unless the owner opts in
+    monkeypatch.setenv("LK_DEMO_ALLOW_HOSTED", "1")
+    assert config.demo_identities_allowed()
