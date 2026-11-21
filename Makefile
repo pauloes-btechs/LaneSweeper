@@ -18,7 +18,7 @@ setup:           ## create the Python venv and install orchestrator + console de
 	npm install --no-audit --no-fund
 
 db-docker:       ## start Postgres 16 + PostGIS + pgvector in Docker (alternative to a local install)
-	docker compose up -d postgres && sleep 4
+	docker compose up -d --build postgres && sleep 4
 
 db:              ## rebuild the LOCAL database: Supabase shim → all migrations → synthetic seed → embeddings
 	./scripts/db-reset.sh
