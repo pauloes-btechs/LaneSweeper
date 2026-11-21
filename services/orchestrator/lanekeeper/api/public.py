@@ -133,4 +133,8 @@ async def device_hud(device_id: str, request: Request, since: str | None = None)
 def evidence(path: str, exp: int, sig: str):
     if not LocalEvidenceStore.check_url(path, exp, sig):
         raise HTTPException(403, "expired or invalid link")
-    return FileResponse(LocalEvidenceStore().root / path)
+    root = LocalEvidenceStore().root.resolve()
+    target = (root / path).resolve()
+    if root not in target.parents or not target.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(target)
