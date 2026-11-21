@@ -35,7 +35,7 @@ SCENARIOS: dict[str, Scenario] = {s.key: s for s in [
     Scenario("car_blocking", "Car parked in the protected lane",
              (Injection(0.6, {"obstacle": "vehicle"}, 0.0, "delivery van in lane"),)),
     Scenario("wheel_jam", "Drive wheel jams", (Injection(0.4, {"wheel_jam": True}, 0.0, "debris lodged in drive wheel"),)),
-    Scenario("low_battery", "Battery reaches reserve mid-mission", battery_start=31.0),
+    Scenario("low_battery", "Battery hits reserve on the way to the lane", battery_start=29.0),
     Scenario("optical_false_positive", "Robot camera finds the reported 'glass' is a wet reflection",
              before_override="confounder-water-05"),
     Scenario("rain_darkness", "Heavy rain and darkness degrade optics", light_level=0.15, after_fixture="after-dark-15"),
