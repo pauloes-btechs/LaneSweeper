@@ -6,4 +6,5 @@ FROM pgvector/pgvector:0.8.7-pg16-trixie
 RUN apt-get update -qq \
  && apt-get install -y -qq --no-install-recommends postgresql-16-postgis-3 \
  && rm -rf /var/lib/apt/lists/*
-COPY supabase/tests/pg_net_stub/ /usr/share/postgresql/16/extension/
+# --chmod: checkouts on some disks (e.g. exFAT on macOS) give files owner-only modes the postgres user cannot read.
+COPY --chmod=0644 supabase/tests/pg_net_stub/ /usr/share/postgresql/16/extension/
