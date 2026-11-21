@@ -1,0 +1,4 @@
+# LOCAL TEST STUB of Supabase's pg_net. Records requests; never makes network calls.
+comment = 'local stub of pg_net for LaneKeeper tests (no network)'
+default_version = '0.0.1'
+relocatable = true

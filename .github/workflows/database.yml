@@ -1,0 +1,25 @@
+name: database
+on:
+  pull_request:
+    paths: ["supabase/**", "tests/**", "scripts/**", ".github/workflows/database.yml"]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lanekeeper
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci-postgres.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q "psycopg[binary]" pytest
+      - name: Migrations apply cleanly from zero (original + additive)
+        run: ./scripts/db-reset.sh
+      - name: RLS, approval ledger and SQL function tests
+        run: python -m pytest tests -m db
