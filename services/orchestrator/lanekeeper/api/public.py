@@ -91,6 +91,23 @@ def submit_report(body: dict, p: Principal = Depends(principal)):
             "errors": [e["error"] for e in r["errors"]] if r["outcome"] == "rejected" else []}
 
 
+def _preview(body: dict) -> dict:
+    from ..rider_assist import preview
+    try:
+        return preview(float(body["lat"]), float(body["lng"]),
+                       None if body.get("accuracy_m") is None else float(body["accuracy_m"]), body.get("hazard_claimed"))
+    except (KeyError, TypeError, ValueError) as e:
+        raise HTTPException(422, f"lat, lng (and optional accuracy_m, hazard_claimed) required: {e}") from e
+
+
+@router.post("/v1/reports/preview")
+def preview_report(body: dict, p: Principal = Depends(principal)):
+    """Read-only: where a rider-agent draft would land and whether it is already reported. Signed-in riders only."""
+    if p.anonymous:
+        raise HTTPException(401, "sign in to use the reporting assistant")
+    return _preview(body)
+
+
 @router.get("/v1/reports/mine")
 def my_reports(p: Principal = Depends(principal)):
     if p.anonymous:
@@ -120,6 +137,18 @@ async def device_event(device_id: str, request: Request):
         raise HTTPException(422, str(e)[:300]) from e
     owner = db.one("select owner_user_id::text from source_devices where id=%s", (device_id,))
     return glasses.handle_device_event(rep.model_dump(mode="json"), owner and owner["owner_user_id"])
+
+
+@router.post("/v1/devices/{device_id}/drafts/preview")
+async def device_draft_preview(device_id: str, request: Request):
+    """Read-only preview for a draft the device's agent made; same signature scheme as device events."""
+    raw = await request.body()
+    devices.verify(device_id, request.headers.get("x-lk-timestamp"), request.headers.get("x-lk-signature"), raw)
+    try:
+        body = json.loads(raw)
+    except ValueError as e:
+        raise HTTPException(422, "invalid JSON") from e
+    return _preview(body)
 
 
 @router.get("/v1/devices/{device_id}/hud")
