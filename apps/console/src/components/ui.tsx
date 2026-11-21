@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 const STATUS_TONE: Record<string, string> = {
   new: 'c-blue', needs_evidence: 'c-amber', triaged: 'c-blue', assigned: 'c-violet', scheduled: 'c-violet', in_progress: 'c-violet',
   remediated_unverified: 'c-amber', verified_closed: 'c-green', reopened: 'c-red', escalated: 'c-red', dismissed: 'c-grey',
-  pending: 'c-amber', approved: 'c-green', denied: 'c-red', revoked: 'c-red', expired: 'c-grey', consumed: 'c-green',
+  pending: 'c-amber', submitted: 'c-green', queued: 'c-amber', declined: 'c-grey', stopped: 'c-green', riding: 'c-amber', approved: 'c-green', denied: 'c-red', revoked: 'c-red', expired: 'c-grey', consumed: 'c-green',
   dispatched: 'c-violet', running: 'c-violet', paused_safety: 'c-red', returning: 'c-amber', completed: 'c-green', aborted: 'c-red',
   docked: 'c-grey', idle: 'c-grey', charging: 'c-blue', en_route: 'c-violet', sweeping: 'c-violet', fault: 'c-red', offline: 'c-red',
   online: 'c-green', degraded: 'c-amber', lost: 'c-red', cleared: 'c-green', partially_cleared: 'c-amber', not_cleared: 'c-red',
