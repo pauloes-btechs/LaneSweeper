@@ -25,6 +25,7 @@ def live(monkeypatch, tmp_path):
     config.get_settings.cache_clear()
     db.one("update feature_flags set enabled=true where key='billable_calls' returning 1")
     db.one("delete from media_assets returning 1")
+    db.one("delete from usage_counters where bucket like 'model:media:%%' returning 1")
 
 
 def mock(handler):
@@ -189,3 +190,23 @@ def test_images_get_a_2k_webp_variant_and_backfill(fresh_db, monkeypatch, tmp_pa
     db.one("update media_assets set web_path=null, web_bytes=null where id='tex-bike-lane' returning 1")
     assert media.poll("tex-bike-lane", client=mock(lambda r: pytest.fail("no model call")))["web"] is True
     assert db.one("select web_path from media_assets where id='tex-bike-lane'")["web_path"]
+
+
+def test_video_web_variant_is_1080p_and_backfilled_by_poll(fresh_db, monkeypatch, tmp_path):
+    import subprocess
+
+    import imageio_ffmpeg
+    live(monkeypatch, tmp_path)
+    src = tmp_path / "uhd.mp4"
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",  # noqa: S603
+                    "testsrc2=size=3840x2160:rate=24", "-t", "1", "-c:v", "libx264", "-preset", "ultrafast", str(src)], check=True)
+
+    def handler(req):
+        return httpx.Response(200, json={"steps": [{"type": "video", "data": base64.b64encode(src.read_bytes()).decode()}]})
+
+    assert media.generate("pov-day-clear", None, client=mock(handler))["status"] == "ready"
+    assert db.one("select web_path from media_assets where id='pov-day-clear'")["web_path"] is None
+    assert media.poll("pov-day-clear", client=mock(lambda r: pytest.fail("no model call")))["web"] is True
+    rel = db.one("select web_path from media_assets where id='pov-day-clear'")["web_path"]
+    probe = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(tmp_path / rel)], capture_output=True, text=True)  # noqa: S603
+    assert "1920x1080" in probe.stderr
