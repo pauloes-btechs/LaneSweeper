@@ -1,4 +1,4 @@
-"""Pre-render the demo reel's non-AI parts into $OUT (default /tmp/release): title/end cards, caption + HUD overlays,
+"""Pre-render the demo reel's non-AI parts into $OUT (commit them to demo-media/reel): title/end cards, caption + HUD overlays,
 captioned walkthrough segments, the twin render, and reel.json. Every video uses lanekeeper.reel.ENCODE so the
 server can stream-copy the join. Run: python scripts/demo/make_parts.py <walkthrough.webm> <marks.json> <twin_frames_dir>"""
 import json
