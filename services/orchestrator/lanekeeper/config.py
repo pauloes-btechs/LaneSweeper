@@ -30,6 +30,27 @@ class Settings:
         return self.ai_mode == "live" and self.billable_calls_enabled and bool(self.google_api_key)
 
 
+def _database_url() -> str:
+    """DATABASE_URL wins; otherwise the Vercel-Supabase integration's pooled URL (Vercel has no IPv6 for direct DB)."""
+    for name in ("DATABASE_URL", "POSTGRES_URL", "POSTGRES_PRISMA_URL"):
+        v = os.environ.get(name)
+        if v:
+            return v.replace("&supa=base-pooler.x", "").replace("?supa=base-pooler.x&", "?").replace("?supa=base-pooler.x", "")
+    return "postgresql://postgres:postgres@localhost:5432/lanekeeper"
+
+
+def session_mode(url: str) -> str:
+    """Use Supabase's pooler in *session* mode (port 5432): a client keeps its server connection, so session settings
+    (the checkpointer's search_path) and prepared statements work. Transaction mode (6543) supports neither."""
+    if ".pooler.supabase.com:6543/" in url:
+        url = url.replace(":6543/", ":5432/")
+    return url.replace("&pgbouncer=true", "").replace("?pgbouncer=true&", "?").replace("?pgbouncer=true", "")
+
+
+def pool_max(default: int) -> int:
+    return int(os.environ.get("LK_DB_POOL_MAX", default))
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     key = os.environ.get("GOOGLE_API_KEY") or None
@@ -41,7 +62,7 @@ def get_settings() -> Settings:
         # There is no hardware gateway in this build. Refuse to start rather than pretend.
         raise RuntimeError("LK_HARDWARE_GATEWAY_ENABLED=true is not supported: real robot control is unavailable")
     return Settings(
-        database_url=os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/lanekeeper"),
+        database_url=_database_url(),
         google_api_key=key,
         ai_mode=mode,
         billable_calls_enabled=_bool("BILLABLE_CALLS_ENABLED", True),
