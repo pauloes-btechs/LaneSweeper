@@ -9,7 +9,7 @@ from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from ..config import get_settings, pool_max, session_mode
+from ..config import get_settings, make_pool, pool_max
 
 _pool: ConnectionPool | None = None
 _saver: PostgresSaver | None = None
@@ -23,9 +23,8 @@ def _private_schema(conn) -> None:
 def get_checkpointer() -> PostgresSaver:
     global _pool, _saver
     if _saver is None:
-        _pool = ConnectionPool(session_mode(get_settings().database_url), min_size=0, max_size=max(2, pool_max(8) // 2), open=True,
-                               configure=_private_schema,
-                               kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row})
+        _pool = make_pool(get_settings().database_url, max_size=max(2, pool_max(8) // 2), configure=_private_schema,
+                          kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row})
         _saver = PostgresSaver(_pool)
         _saver.setup()
     return _saver
