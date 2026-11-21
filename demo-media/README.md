@@ -1,6 +1,6 @@
-# Demo media: storyboard and Veo / AI Studio prompt library
+# Demo media: storyboard and prompt library
 
-**No video was generated for this repository.** This folder is a production brief. If you generate clips (Veo through AI Studio or Vertex, or your own footage), put them in `apps/console/public/media/` with the filenames below (git-ignored). Today only **`shot2-glasses-pov.mp4`** is wired in: when present, the Glasses simulator shows a *use local clip* toggle and runs the same on-device detector on the clip's frames (detection only, since reports keep using labelled fixtures). Without the file, the simulator uses the synthetic frames. The other clips are for an edited video.
+**Generated media now comes from the app itself.** See [docs/MEDIA_PIPELINE.md](../docs/MEDIA_PIPELINE.md): Settings → AI demo media generates the 4K POV clips, stills and textures (Gemini Omni Flash, Nano Banana) with the server-side key, and **Build public demo video** assembles the official reel. The production brief below is kept for anyone shooting or generating additional footage by hand; a local `apps/console/public/media/shot2-glasses-pov.mp4` still works as the Glasses simulator's *Local clip* source.
 
 ## Ground rules for every shot
 

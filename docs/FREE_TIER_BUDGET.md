@@ -14,6 +14,11 @@ The user has an unlimited Google API account, so model *access* isn't the constr
 | `embed` | gemini-embedding-2 → -preview | embedContent | 120 | 10,000 | 20 s | `hash_embedder` (768-d) |
 | `reason.deep` (optional) | gemini-4-carbon / argon | — | off unless an owner enables it per request | | | |
 
+| `media.video` | gemini-omni-1.1-flash | Interactions (background) | 2 | 12 | 60 s submit, polled | none: admin-triggered only |
+| `media.image` | gemini-nano-banana-2.1 | Interactions | 6 | 60 | 240 s | none: admin-triggered only |
+
+Media generation is never automatic: a city admin presses Generate after seeing the cost estimate ([media pipeline](MEDIA_PIPELINE.md)).
+
 Global guards, applied on top of the per-route caps: `AI_PER_MINUTE_CAP` (default 60; the lower of the route and global caps wins), `AI_DAILY_CALL_CAP` (default 5,000) across all routes, and a circuit breaker per model (opens after 5 failures, 120 s cooldown, then falls back).
 
 **Two-key kill switch.** A live call needs *both* `BILLABLE_CALLS_ENABLED=true` in the environment *and* the `billable_calls` DB flag set. Either one off means every call goes to the labelled offline substitute. CI runs with both off.
