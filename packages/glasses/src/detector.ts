@@ -29,6 +29,7 @@ export interface DetectorOptions {
   laneLeft?: number;          // fraction of width at the bottom edge
   laneRight?: number;
   brightK?: number;           // brightness threshold = mean + k * std
+  horizon?: number;           // fraction of height where the lane edges converge (camera mounting dependent)
 }
 
 const MODEL = 'lk-local-heuristic-v1';
@@ -36,9 +37,9 @@ const MODEL = 'lk-local-heuristic-v1';
 export function detect(frame: Frame, opts: DetectorOptions = {}): Detection {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const step = opts.step ?? 2;
-  const roiTop = opts.roiTop ?? 0.4;
-  const left = opts.laneLeft ?? 0.18;
-  const right = opts.laneRight ?? 0.82;
+  const roiTop = opts.roiTop ?? 0.45;
+  const left = opts.laneLeft ?? 0.2;    // lane interior at the bottom edge, inside the buffer stripes
+  const right = opts.laneRight ?? 0.8;
   const W = Math.floor(frame.width / step);
   const H = Math.floor(frame.height / step);
   const y0 = Math.floor(H * roiTop);
@@ -48,10 +49,11 @@ export function detect(frame: Frame, opts: DetectorOptions = {}): Detection {
   let sum2 = 0;
   let n = 0;
   for (let y = y0; y < H; y++) {
-    // lane trapezoid narrows toward the horizon
-    const t = (y - y0) / Math.max(1, H - y0);
-    const lx = Math.floor(W * (0.5 - (0.5 - left) * (0.25 + 0.75 * t)));
-    const rx = Math.ceil(W * (0.5 + (right - 0.5) * (0.25 + 0.75 * t)));
+    // perspective ROI: edges converge on a vanishing point at the horizon, like the lane itself
+    const hz = H * (opts.horizon ?? 0.36);
+    const t = Math.max(0, (y - hz) / Math.max(1, H - hz));
+    const lx = Math.floor(W * (0.5 - (0.5 - left) * t));
+    const rx = Math.ceil(W * (0.5 + (right - 0.5) * t));
     for (let x = lx; x < rx; x++) {
       const i = ((y * step) * frame.width + x * step) * 4;
       const l = 0.2126 * (frame.data[i] ?? 0) + 0.7152 * (frame.data[i + 1] ?? 0) + 0.0722 * (frame.data[i + 2] ?? 0);
@@ -72,6 +74,8 @@ export function detect(frame: Frame, opts: DetectorOptions = {}): Detection {
   let blobs = 0;
   let streaks = 0;
   let minX = W, minY = H, maxX = -1, maxY = -1;
+  const blobBoxes: Array<[number, number, number, number]> = [];
+  const speckBoxes: Array<[number, number, number, number]> = [];
   const seen = new Uint8Array(W * H);
   const stack: number[] = [];
   for (let k = 0; k < W * H; k++) {
@@ -90,16 +94,22 @@ export function detect(frame: Frame, opts: DetectorOptions = {}): Detection {
     }
     const bw = cx1 - cx0 + 1, bh = cy1 - cy0 + 1;
     const elong = Math.max(bw, bh) / Math.max(1, Math.min(bw, bh));
-    if (area >= 120) blobs++;
+    if (area >= 120 || Math.max(bw, bh) >= 24) { blobs++; blobBoxes.push([cx0, cy0, cx1, cy1]); }
     else if (elong >= 4 && Math.max(bw, bh) >= 8) streaks++;
-    else if (area >= 1 && area <= 40) {
-      specks++;
-      minX = Math.min(minX, cx0); minY = Math.min(minY, cy0); maxX = Math.max(maxX, cx1); maxY = Math.max(maxY, cy1);
-    }
+    else if (area >= 1 && area <= 40) speckBoxes.push([cx0, cy0, cx1, cy1]);
+    else if (elong < 3) { for (let r = 0; r < 3; r++) speckBoxes.push([cx0, cy0, cx1, cy1]); }   // compact shard cluster ≈ 3 specks
+  }
+  // Specks on or next to a large object are that object's texture/edges (foil creases, paint), not loose glass.
+  const PAD = 6;
+  for (const [a0, b0, a1, b1] of speckBoxes) {
+    const near = blobBoxes.some(([x0, y0, x1, y1]) => a1 >= x0 - PAD && a0 <= x1 + PAD && b1 >= y0 - PAD && b0 <= y1 + PAD);
+    if (near) continue;
+    specks++;
+    minX = Math.min(minX, a0); minY = Math.min(minY, b0); maxX = Math.max(maxX, a1); maxY = Math.max(maxY, b1);
   }
   // Many small compact glints → glass-like; streaks (glare) reduce confidence.
   const effective = Math.max(0, specks - 2 * streaks);
-  let score = 1 - Math.exp(-effective / 7);
+  let score = 1 - Math.exp(-effective / 5);
   if (blobs > 0 && specks < 4) score = Math.min(score, 0.3);
   const label: Detection['label'] = score >= 0.55 ? 'possible_glass' : blobs > 0 && streaks === 0 ? 'possible_debris' : 'none';
   const box = maxX >= 0 ? { x: minX * step, y: minY * step, w: (maxX - minX + 1) * step, h: (maxY - minY + 1) * step } : null;
