@@ -22,7 +22,7 @@ from ..planning.routes import WorkItem, blocked_cells, load_robots
 from ..policy import approvals
 from ..policy.engine import PolicyDenied, check
 from ..sim import runner
-from ..tracing import start_run, traced
+from ..tracing import set_status, start_run, traced
 from .state import LaneKeeperState, make_thread_id
 
 
@@ -223,6 +223,8 @@ def snapshot(thread_id: str, deps: Deps | None = None) -> dict:
     snap = build(deps, get_checkpointer()).get_state({"configurable": {"thread_id": thread_id}})
     ints = [i.value for t in snap.tasks for i in (t.interrupts or ())]
     v = snap.values
+    if not ints and v.get("run_id"):
+        set_status(v["run_id"], "succeeded")
     return {"thread_id": thread_id, "run_id": v.get("run_id"), "status": "waiting" if ints else "done",
             "interrupt": ints[0] if ints else None, "outcome": v.get("outcome"),
             "approvals": (v.get("evidence") or {}).get("approvals"), "missions": (v.get("evidence") or {}).get("missions"),

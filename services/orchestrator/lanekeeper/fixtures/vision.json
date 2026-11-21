@@ -59,7 +59,7 @@
   {
    "id": "glass-sparse-03",
    "file": "fixtures/images/glass-sparse-03.png",
-   "description": "Synthetic: two or three small fragments near lane edge (ambiguous)",
+   "description": "Synthetic: a few small fragments just inside the lane edge (ambiguous)",
    "provenance": "SIMULATED",
    "truth": {
     "hazard": "glass",
@@ -70,7 +70,7 @@
     "points": [
      [
       700,
-      820,
+      615,
       "possible_glass"
      ]
     ],
@@ -298,7 +298,7 @@
   {
    "id": "after-partial-14",
    "file": "fixtures/images/after-partial-14.png",
-   "description": "Synthetic after-sweep frame: fragments remain at the lane edge",
+   "description": "Synthetic after-sweep frame: fragments remain just inside the lane edge",
    "provenance": "SIMULATED",
    "truth": {
     "hazard": "glass",
@@ -309,12 +309,12 @@
     "points": [
      [
       705,
-      840,
+      615,
       "broken_glass"
      ],
      [
       690,
-      860,
+      640,
       "broken_glass"
      ]
     ],

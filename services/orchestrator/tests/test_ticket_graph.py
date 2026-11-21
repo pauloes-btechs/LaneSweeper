@@ -224,3 +224,12 @@ def test_twin_replay_is_deterministic():
         out = approve_and_resume(r)
         return [e["kind"] for e in db.all_rows("select kind from mission_events where mission_id=%s order by id", (out["mission_id"],))]
     assert kinds(110, "pedestrian") == kinds(130, "pedestrian")
+
+
+def test_pin_on_boundary_between_adjacent_cells_is_not_ambiguous():
+    a, b = cell_latlng(132), cell_latlng(133)
+    rep = report(132)
+    rep["location"] = {"lat": (a[0] + b[0]) / 2, "lng": (a[1] + b[1]) / 2, "accuracy_m": 25, "source": "pin"}
+    r = workflows.submit_report(rep, auth.ANONYMOUS)
+    assert db.one("select match_status from hazard_reports where id=%s", (r["report_id"],))["match_status"] == "matched"
+    assert r["route"] == "robotic_remediation_candidate"

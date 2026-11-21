@@ -6,7 +6,8 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "apps/console"
+    "apps/console",
+    "tests/e2e"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
