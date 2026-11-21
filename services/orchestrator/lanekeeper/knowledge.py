@@ -41,8 +41,16 @@ def space_for(jurisdiction_id: str) -> str | None:
     return c.most_common(1)[0][0] if c else None
 
 
+def ensure_embedded(router: ModelRouter) -> int:
+    """Embed chunks that have no vector yet (e.g. a freshly seeded hosted project). Cheap no-op otherwise."""
+    if not db.one("select exists(select 1 from knowledge_chunks where embedding is null) as missing")["missing"]:
+        return 0
+    return embed_pending_chunks(router)["embedded"]
+
+
 def retrieve(jurisdiction_id: str, query: str, *, k: int = 4, router: ModelRouter | None = None) -> list[dict]:
     router = router or ModelRouter()
+    ensure_embedded(router)
     space = space_for(jurisdiction_id)
     vec = None
     if space:
