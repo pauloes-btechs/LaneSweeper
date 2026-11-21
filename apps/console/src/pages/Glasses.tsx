@@ -1,8 +1,10 @@
-import { CAUTION_TEXT, Debouncer, DeviceLink, OfflineQueue, SimulatedGlassesAdapter, WarningPolicy, detect, type Detection, type Frame, type KV } from '@lanekeeper/glasses';
+import { CAUTION_TEXT, Debouncer, DeviceLink, RiderReportAgent, SAVED_PROMPT, SimulatedGlassesAdapter, SubmitRejected, WarningPolicy, detect, type Detection, type DraftLocation, type DraftPreview, type Frame } from '@lanekeeper/glasses';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AgentDrafts } from '../components/AgentDrafts';
 import { SimBanner } from '../components/Layout';
 import { api, session } from '../lib/api';
+import { DRAFTS_KEY, lsKV } from '../lib/storage';
 
 // A simulated ride north on 1st Ave: mostly clear lane, with labelled hazards and confounders mixed in.
 const RIDE = ['clear-lane-12', 'clear-lane-12', 'glass-1av-dawn-01', 'glass-1av-dawn-01', 'glass-1av-dawn-01', 'glass-1av-dawn-01', 'clear-lane-12',
@@ -10,10 +12,6 @@ const RIDE = ['clear-lane-12', 'clear-lane-12', 'glass-1av-dawn-01', 'glass-1av-
   'glass-1av-night-02', 'glass-1av-night-02', 'glass-1av-night-02', 'glass-1av-night-02', 'clear-lane-12', 'pothole-09', 'pothole-09'];
 const CELL_FOR_STEP = (i: number) => 30 + i * 4;   // advance ~100 m per step along 1st Ave (synthetic)
 
-const lsKV: KV = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode: in-memory only for this page */ } },
-};
 
 interface LogRow { t: string; frame: string; d: Detection; stable: boolean; alert: string | null }
 
@@ -64,11 +62,54 @@ export default function Glasses() {
   const [link, setLink] = useState<DeviceLink | null>(null);
   const [linkMsg, setLinkMsg] = useState<string>('Not paired');
   const [server, setServer] = useState<string[]>([]);
-  const queue = useMemo(() => new OfflineQueue(lsKV, 'lk.glasses.queue'), []);
-  const [queued, setQueued] = useState(queue.items().length);
   const deb = useMemo(() => new Debouncer(3, 0.55), []);
   const warn = useMemo(() => new WarningPolicy(8000), []);
-  const best = useRef<{ frame: string; d: Detection; step: number } | null>(null);
+
+  // The rider's assistant: drafts reports from stable detections; the rider approves before anything is sent.
+  const linkRef = useRef<DeviceLink | null>(null); linkRef.current = link;
+  const onlineRef = useRef(online); onlineRef.current = online;
+  const consentRef = useRef(consent); consentRef.current = consent;
+  const [draftsVer, setDraftsVer] = useState(0);
+  const bump = () => setDraftsVer((v) => v + 1);
+  const agent = useMemo(() => new RiderReportAgent({
+    sourceKind: 'glasses_sim', kv: lsKV, storageKey: DRAFTS_KEY,
+    prefs: () => ({ shareImage: consentRef.current.share_image, shareLocation: consentRef.current.share_location,
+                    notifyStatus: consentRef.current.notify_status, policyVersion: 'rider-2026.11' }),
+    submit: async (body) => {
+      const l = linkRef.current;
+      if (!l || !onlineRef.current) throw new Error(l ? 'phone link offline' : 'glasses not paired');
+      let r: Record<string, unknown>;
+      try { r = await l.postEvent(body); } catch (e) {
+        const m = /rejected: (\d{3})/.exec((e as Error).message);
+        if (m && m[1]!.startsWith('4') && !['408', '429'].includes(m[1]!)) throw new SubmitRejected((e as Error).message);
+        throw e;                                    // network / server error: the agent queues it for retry
+      }
+      if (r.outcome === 'rejected') throw new SubmitRejected('the server did not accept this report');
+      return { ticket_number: (r.ticket_number as string | null | undefined) ?? null };
+    },
+    preview: async (q) => {
+      const l = linkRef.current;
+      if (!l || !onlineRef.current) throw new Error('no link');
+      return (await l.previewDraft(q)) as unknown as DraftPreview;
+    },
+  }), []);
+  const [lanes, setLanes] = useState<Record<string, number[]>>({});
+  useEffect(() => {
+    void api.publicGet<{ features: Array<{ id: string; geometry: { coordinates: number[][] } }> }>('/v1/public/lanes?jurisdiction=nyc')
+      .then((fc) => setLanes(Object.fromEntries(fc.features.map((f) => [f.id, f.geometry.coordinates[0]!]))))
+      .catch(() => setLanes({}));
+  }, []);
+  /** Simulated phone GPS fix for the current ride position (the glasses have no GPS of their own). */
+  function locFor(i: number, speedMps: number): DraftLocation | null {
+    const c = lanes[`MN-1AV-${String(CELL_FOR_STEP(i)).padStart(4, '0')}`];
+    return c ? { lat: c[1]!, lng: c[0]!, accuracy_m: 8, heading_deg: 29, speed_mps: Math.round(speedMps * 10) / 10, source: 'phone_gps' } : null;
+  }
+  /** A small JPEG of a real (clip) frame for the draft; fixtures are referenced by id instead. */
+  function snapshotB64(src: HTMLCanvasElement): string {
+    const t = document.createElement('canvas'); t.width = 320; t.height = 240;
+    t.getContext('2d')!.drawImage(src, 0, 0, 320, 240);
+    return t.toDataURL('image/jpeg', 0.6).split(',')[1]!;
+  }
 
   const adapter = useMemo(() => new SimulatedGlassesAdapter({
     frameProvider: () => null,
@@ -114,7 +155,15 @@ export default function Glasses() {
     const speed = kmh / 3.6;
     const decision = warn.decide(db.stable, speed, Date.now());
     if (decision.alert) { void adapter.showAlert(decision.alert); void adapter.playAudio(decision.speak!); }
-    if (!clipMode && d.label === 'possible_glass' && (!best.current || d.score > best.current.d.score)) best.current = { frame: fid, d, step };
+    const cap = agent.observe(d, db.stable, db.consecutive,
+      { id: clipMode ? `clip-${Date.now()}` : fid, imageB64: clipMode && db.stable && d.label === 'possible_glass' ? snapshotB64(work) : undefined },
+      locFor(step, speed), Boolean(decision.alert));
+    if (cap?.created) {
+      void adapter.playAudio('Report saved. Confirm when stopped.');
+      setServer((sv) => [`Assistant: ${SAVED_PROMPT} (${cap.draft.location ? 'location saved' : 'no location'}, snapshots captured automatically)`, ...sv]);
+      void agent.refreshPreview(cap.draft.id).then(bump);
+    }
+    if (cap) bump();
     setLast(d);
     setLog((l) => [{ t: new Date().toLocaleTimeString(), frame: fid, d, stable: db.stable, alert: decision.alert?.text ?? null }, ...l].slice(0, 40));
     // HUD layer: black = see-through on waveguide glasses; one glyph, one line
@@ -127,39 +176,21 @@ export default function Glasses() {
 
   useEffect(() => { if (!clip) return; if (useClip && running) void clip.play(); else clip.pause(); }, [clip, useClip, running]);
 
-  async function report() {
-    const b = best.current;
-    if (!b) { setServer((s) => [`No candidate captured yet.`, ...s]); return; }
-    const cell = CELL_FOR_STEP(b.step);
-    const lanes = await api.publicGet<{ features: Array<{ id: string; geometry: { coordinates: number[][] } }> }>('/v1/public/lanes?jurisdiction=nyc');
-    const f = lanes.features.find((x) => x.id === `MN-1AV-${String(cell).padStart(4, '0')}`) ?? lanes.features[cell];
-    const c = f!.geometry.coordinates[0]!;
-    const event = {
-      idempotency_key: `glasses-${crypto.randomUUID()}`, source_kind: 'glasses_sim', fixture_id: consent.share_image ? b.frame : undefined,
-      hazard_claimed: 'glass', note: 'Reported hands-free from SIMULATED GLASSES after stopping',
-      location: consent.share_location ? { lat: c[1], lng: c[0], accuracy_m: 10, source: 'phone_gps', speed_mps: 0 } : undefined,
-      consent: { policy_version: 'rider-2026.11', share_image: consent.share_image, share_location: consent.share_location, notify_status: consent.notify_status },
-      local_detector: { label: b.d.label, score: b.d.score, consecutive_frames: 3, model: b.d.model, warning_issued: true },
-    };
-    if (!link || !online) {
-      queue.enqueue(event); setQueued(queue.items().length);
-      setServer((s) => [`Link ${link ? 'offline' : 'not paired'}: report queued on device (${queue.items().length} waiting). The warning already happened locally.`, ...s]);
-      return;
-    }
+  /** Simulated hardware button on the glasses: approves the newest draft, hands-free (allowed while riding). */
+  async function glassesButton() {
     try {
-      const r = await link.postEvent(event);
-      setServer((s) => [`Server: ${String(r.outcome)} · ticket ${String(r.ticket_number ?? '(needs review)')} · route ${String(r.route ?? '—')}`, ...s]);
-    } catch (e) { queue.enqueue(event); setQueued(queue.items().length); setServer((s) => [`Send failed (${(e as Error).message}); queued.`, ...s]); }
+      const r = await agent.approveLatestByButton(kmh / 3.6);
+      setServer((sv) => [!r ? 'Glasses button: no draft waiting.' : r.status === 'submitted'
+        ? `Glasses button: you approved the draft; submitted as ${r.ticket ?? '(pending review)'}.`
+        : `Glasses button: you approved the draft; queued on the device (${r.error ?? 'offline'}).`, ...sv]);
+    } catch (e) { setServer((sv) => [`Glasses button: ${(e as Error).message}`, ...sv]); }
+    bump();
   }
 
-  async function flush() {
-    if (!link || !online) return;
-    const r = await queue.flush(async (body) => { try { await link.postEvent(body); return true; } catch { return false; } });
-    setQueued(queue.items().length);
-    setServer((s) => [`Flushed queue: ${r.sent} sent, ${r.kept} kept`, ...s]);
-  }
-
-  useEffect(() => { if (online) void flush(); }, [online]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!online || !link) return;
+    void agent.flushQueued().then((r) => { if (r.sent) setServer((sv) => [`Sent ${r.sent} approved report(s) that were queued offline.`, ...sv]); bump(); });
+  }, [online, link]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -183,13 +214,12 @@ export default function Glasses() {
               <label className="field small">Speed<input type="range" min={0} max={30} value={kmh} onChange={(e) => setKmh(Number(e.target.value))} aria-label="Speed km/h" /></label>
               <label className="row small"><input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />phone link online</label>
               <label className="row small"><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />spoken warning</label>
-              {clip && <label className="row small"><input type="checkbox" checked={useClip} onChange={(e) => setUseClip(e.target.checked)} />use local clip (detection only)</label>}
+              {clip && <label className="row small"><input type="checkbox" checked={useClip} onChange={(e) => setUseClip(e.target.checked)} />use local clip</label>}
             </div>
             <div className="row">
-              <button onClick={() => void report()} disabled={kmh > 3 || (useClip && clip !== null)}
-                title={useClip && clip ? 'Local clips are for detection demos; reports use labelled fixtures' : kmh > 3 ? 'Stop first: reporting is only offered when stopped' : ''}>Report hazard (when stopped)</button>
+              <button onClick={() => void glassesButton()} title="One press on the glasses approves the newest draft; no reading needed">Glasses button: approve latest draft</button>
               {!link && <button onClick={() => void pair()}>Pair simulated glasses</button>}
-              <span className="small muted">{linkMsg} · queued: {queued}</span>
+              <span className="small muted">{linkMsg} · approved & queued: {agent.queue.items().length}</span>
             </div>
             <div className="row small">
               {(['share_location', 'share_image', 'notify_status'] as const).map((k) => <label key={k} className="row"><input type="checkbox" checked={consent[k]} onChange={(e) => setConsent({ ...consent, [k]: e.target.checked })} />{k.replace(/_/g, ' ')}</label>)}
@@ -197,6 +227,7 @@ export default function Glasses() {
             {server.length > 0 && <div className="callout info small" role="status">{server.map((s, i) => <div key={i}>{s}</div>)}</div>}
           </div>
           <div className="stack">
+            <AgentDrafts agent={agent} speedMps={kmh / 3.6} version={draftsVer} onChange={bump} compact />
             <div className="card"><h3>On-device detector</h3>
               {last ? <table className="data small"><tbody>
                 <tr><td>Frame</td><td className="mono">{log[0]?.frame ?? RIDE[step]}</td></tr>
@@ -209,7 +240,8 @@ export default function Glasses() {
             <div className="card"><h3>Data path</h3>
               <ol className="small" style={{ margin: 0, paddingLeft: 18 }}>
                 <li>Glasses/phone: local detector → debounce → audio + one HUD glyph (no network needed)</li>
-                <li>Rider stops → report: minimal frame + approximate location, only with consent</li>
+                <li>Rider assistant (on the device): auto-captures the best snapshots + GPS fix and fills in the report; asks the server where it lands and whether it’s already reported</li>
+                <li>Rider approves: one glasses-button press, or a tap once stopped. Nothing is sent before that; drafts expire in 15 min</li>
                 <li>Signed device link → LaneKeeper glasses graph → de-identify → ticket graph</li>
                 <li>Server: Gemini Decision 1 + Robotics ER verification (advisory) → ticket → city operator</li>
                 <li>Operator approval → simulated fleet → verified cleanup → status back to the HUD (shown only when stopped)</li>
