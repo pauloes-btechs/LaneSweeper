@@ -73,3 +73,17 @@ def test_supabase_store_uploads_privately_and_reads_back(monkeypatch):
         st.get("../secrets")
     with pytest.raises(storage.EvidenceError):
         st.put(b"not an image", "image/jpeg", jurisdiction_slug="nyc")
+
+
+def test_secrets_derive_from_service_key_and_never_default_when_hosted(monkeypatch):
+    for k in ("LK_SIGNING_SECRET", "SUPABASE_SERVICE_ROLE_KEY", "VERCEL"):
+        monkeypatch.delenv(k, raising=False)
+    assert config._secret("LK_SIGNING_SECRET", "signing") == "change-me-dev-only"
+    monkeypatch.setenv("VERCEL", "1")
+    with pytest.raises(RuntimeError):
+        config._secret("LK_SIGNING_SECRET", "signing")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "svc-key")
+    a, b = config._secret("LK_SIGNING_SECRET", "signing"), config._secret("LK_DEVICE_LINK_SECRET", "device-link")
+    assert len(a) == 64 and a != b and "svc-key" not in a
+    monkeypatch.setenv("LK_SIGNING_SECRET", "explicit")
+    assert config._secret("LK_SIGNING_SECRET", "signing") == "explicit"

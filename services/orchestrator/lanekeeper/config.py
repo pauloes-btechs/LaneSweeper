@@ -39,6 +39,25 @@ def _database_url() -> str:
     return "postgresql://postgres:postgres@localhost:5432/lanekeeper"
 
 
+def _secret(name: str, purpose: str) -> str:
+    """Explicit env var, else derived from the Supabase service-role key (hosted), else a dev-only default.
+
+    Deriving means no new secret has to be created or copied by hand when the Vercel-Supabase integration injects
+    SUPABASE_SERVICE_ROLE_KEY. Rotating that key rotates these too (device pairings then need redoing).
+    A hosted (Vercel) deployment refuses to start on the dev default."""
+    v = os.environ.get(name)
+    if v:
+        return v
+    root = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if root:
+        import hashlib
+        import hmac
+        return hmac.new(root.encode(), f"lanekeeper:{purpose}:v1".encode(), hashlib.sha256).hexdigest()
+    if os.environ.get("VERCEL"):
+        raise RuntimeError(f"{name} (or SUPABASE_SERVICE_ROLE_KEY) must be set on a hosted deployment")
+    return "change-me-dev-only"
+
+
 def session_mode(url: str) -> str:
     """Use Supabase's pooler in *session* mode (port 5432): a client keeps its server connection, so session settings
     (the checkpointer's search_path) and prepared statements work. Transaction mode (6543) supports neither."""
@@ -68,9 +87,9 @@ def get_settings() -> Settings:
         billable_calls_enabled=_bool("BILLABLE_CALLS_ENABLED", True),
         ai_daily_cap=int(os.environ.get("AI_DAILY_CALL_CAP", "5000")),
         ai_per_minute_cap=int(os.environ.get("AI_PER_MINUTE_CAP", "60")),
-        signing_secret=os.environ.get("LK_SIGNING_SECRET", "change-me-dev-only"),
+        signing_secret=_secret("LK_SIGNING_SECRET", "signing"),
         supabase_jwt_secret=os.environ.get("SUPABASE_JWT_SECRET") or None,
-        device_link_secret=os.environ.get("LK_DEVICE_LINK_SECRET", "change-me-dev-only"),
+        device_link_secret=_secret("LK_DEVICE_LINK_SECRET", "device-link"),
         hardware_gateway_enabled=False,
         api_port=int(os.environ.get("LK_API_PORT", "8787")),
     )
