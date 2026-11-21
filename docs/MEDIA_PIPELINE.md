@@ -37,10 +37,10 @@ model calls.
 7. Optional clear-lane clip, then the end card
 
 The non-AI parts are rendered by `scripts/demo/` against a local demo stack (`record-walkthrough.mjs`, `render-twin.mjs`,
-`make_parts.py`) and published as the `demo-assets-v1` GitHub release with a `reel.json` manifest. The server validates
-the manifest, cuts and captions the AI parts with ffmpeg, stream-copies the join, and uploads one 1080p MP4 to the
+`make_parts.py`) and committed to `demo-media/reel/` with a `reel.json` manifest; they ship inside the Vercel function.
+The server validates the manifest, cuts and captions the AI parts with ffmpeg, stream-copies the join, and uploads one 1080p MP4 to the
 public `demo` bucket (that bucket holds only the reel):
 
 `https://<project>.supabase.co/storage/v1/object/public/demo/lanekeeper-os-demo.mp4`
 
-To refresh it: regenerate any assets, rebuild the release parts if the UI changed, then press the button again.
+To refresh it: regenerate any assets, re-render `demo-media/reel/` if the UI changed, then press the button again.
