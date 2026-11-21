@@ -1,4 +1,5 @@
 import { IdentityPicker } from '../components/Identity';
+import { MediaPanel } from '../components/MediaPanel';
 import { RequireStaff } from '../components/RequireStaff';
 import { Chip, ErrorState, Loading, ago } from '../components/ui';
 import { useApi } from '../lib/useApi';
@@ -28,6 +29,7 @@ function Body({ me }: { me: Me }) {
               {Object.entries(s.data.routes).map(([k, r]) => <tr key={k}><td className="mono">{k}</td><td className="mono">{r.candidates.join(', ')}</td><td>{r.api}</td><td>{r.offline}</td></tr>)}</tbody></table></>}
         </div>
       </div>
+      {me.memberships.some((m) => m.role === 'city_admin') && <MediaPanel jurisdiction={me.memberships.find((m) => m.role === 'city_admin')?.id} />}
       <div className="card"><h3>Recent model calls (no prompts or images are logged)</h3>
         {!s.data ? <Loading /> : s.data.recent_calls.length === 0 ? <p className="muted small">None yet.</p> :
           <table className="data small"><thead><tr><th>When</th><th>Route</th><th>Model</th><th>Mode</th><th>Outcome</th><th>Latency</th></tr></thead><tbody>

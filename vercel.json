@@ -6,7 +6,7 @@
   "outputDirectory": "apps/console/dist",
   "functions": {
     "api/index.py": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "includeFiles": "{services/orchestrator/lanekeeper/**,fixtures/images/**}",
       "excludeFiles": "{**/__pycache__/**,**/tests/**}"
     }

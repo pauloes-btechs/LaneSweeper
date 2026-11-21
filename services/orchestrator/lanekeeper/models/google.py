@@ -80,6 +80,35 @@ class GoogleClient:
         except json.JSONDecodeError as e:
             raise ModelError("malformed", "response was not JSON") from e
 
+    def _get(self, path: str, timeout: float) -> dict:
+        try:
+            r = self._http.get(f"{self._base}/{path}", timeout=timeout, headers={"x-goog-api-key": self._key})
+        except httpx.TimeoutException as e:
+            raise ModelError("timeout", "request timed out") from e
+        except httpx.HTTPError as e:
+            raise ModelError("http", type(e).__name__) from e
+        if r.status_code >= 400:
+            raise _classify(r)
+        try:
+            return r.json()
+        except json.JSONDecodeError as e:
+            raise ModelError("malformed", "response was not JSON") from e
+
+    # ---- Media generation (Interactions API: Nano Banana images, Gemini Omni Flash video) -------
+    def create_media(self, model: str, prompt: str, response_format: dict, *, images: list[Image] = (),
+                     background: bool = False, timeout: float = 280) -> dict:
+        parts: list[dict] = [{"type": "image", "data": im.b64, "mime_type": im.mime_type} for im in images]
+        body: dict[str, Any] = {"model": model, "response_format": response_format,
+                                "input": ([*parts, {"type": "text", "text": prompt}] if parts else prompt)}
+        if background:
+            body["background"] = True
+        return self._post("interactions", body, timeout)
+
+    def get_interaction(self, interaction_id: str, timeout: float = 120) -> dict:
+        if not interaction_id.replace("-", "").replace("_", "").replace("/", "").isalnum():
+            raise ModelError("malformed", "bad interaction id")
+        return self._get(f"interactions/{interaction_id}", timeout)
+
     # ---- Decisions API -------------------------------------------------------------------------
     def decide(self, model: str, text: str, questions: dict[str, dict], images: list[Image] = (),
                timeout: float = 20) -> dict:
@@ -166,3 +195,31 @@ def _interaction_text(out: dict) -> str:
     if not texts:
         raise ModelError("malformed", "interaction response had no output text")
     return texts[-1]
+
+
+def media_output(out: dict, kind: str) -> tuple[bytes, str] | None:
+    """First generated `kind` ('image' | 'video') block in an interaction: (bytes, mime). None if not present yet."""
+    import base64
+    found: list[dict] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == kind and (node.get("data") or node.get("uri")):
+                found.append(node)
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(out.get("steps") or out.get("outputs") or out)
+    for blk in found:
+        if blk.get("data"):
+            return base64.b64decode(blk["data"]), blk.get("mime_type") or ("video/mp4" if kind == "video" else "image/png")
+    return None
+
+
+def interaction_status(out: dict) -> str:
+    """'completed' | 'in_progress' | 'failed' | ... (raw API status, lower-cased)."""
+    return str(out.get("status") or ("completed" if out.get("steps") else "in_progress")).lower()

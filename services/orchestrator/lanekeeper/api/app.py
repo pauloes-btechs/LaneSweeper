@@ -6,7 +6,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import demo, public, staff
+from . import demo, media, public, staff
 from .common import install_error_handlers
 
 
@@ -19,6 +19,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(public.router)
     app.include_router(staff.router)
+    app.include_router(media.router)
     if demo.enabled():
         app.include_router(demo.router)
     return app
