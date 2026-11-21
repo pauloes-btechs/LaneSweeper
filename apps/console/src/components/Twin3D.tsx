@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 // The original LK-01 parametric model from the LaneKeeper site: one source of truth for geometry and dimensions.
-// @ts-expect-error - plain JS module without type declarations
 import { buildRobot, DIMS } from '../../../site/src/robot/model.js';
 
 interface Props { state: string; progress: number; sweeping: boolean; label?: string }
