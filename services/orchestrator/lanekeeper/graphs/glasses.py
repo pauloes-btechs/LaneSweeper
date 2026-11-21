@@ -22,7 +22,7 @@ from .. import WORKFLOW_VERSION, db, workflows
 from ..auth import Principal
 from ..deps import Deps
 from ..privacy import minimise_frame
-from ..tracing import start_run, traced
+from ..tracing import set_status, start_run, traced
 from .state import LaneKeeperState, make_thread_id
 
 MIN_CONSECUTIVE_FRAMES = 3      # device-side debounce requirement, re-checked here
@@ -161,5 +161,6 @@ def handle_device_event(event: dict, actor_id: str | None = None, *, scenario: s
                                  jurisdiction_id=None, actor_id=actor_id)
     out = graph.invoke({"report": event, "actor_id": actor_id, "run_id": run_id, "trace_id": trace_id, "scenario": scenario,
                         "errors": [], "messages": []}, cfg)
+    set_status(run_id, "succeeded")
     return {"thread_id": thread_id, "run_id": run_id, "outcome": out.get("outcome"), "ticket_number": out.get("ticket_number"),
             "ticket_id": out.get("ticket_id"), "route": out.get("route"), "ticket_thread": (out.get("evidence") or {}).get("ticket_thread")}

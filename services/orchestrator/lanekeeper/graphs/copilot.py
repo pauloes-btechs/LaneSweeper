@@ -19,7 +19,7 @@ from ..auth import Principal, reload
 from ..deps import Deps
 from ..policy.engine import PolicyDenied, check
 from ..tools import REGISTRY, ToolCtx, ToolDenied, invoke
-from ..tracing import start_run, traced
+from ..tracing import set_status, start_run, traced
 from .state import LaneKeeperState, make_thread_id
 
 COPILOT_TOOLS = {"search_tickets", "get_ticket", "find_lane_cells", "get_sweeper_availability", "get_telemetry", "retrieve_sop",
@@ -207,6 +207,7 @@ def ask(principal: Principal, jurisdiction_id: str, question: str, *, session: s
                         "jurisdiction_id": jurisdiction_id, "run_id": run_id, "trace_id": trace_id, "errors": []},
                        {"configurable": {"thread_id": thread_id}})
     last = out["messages"][-1]
+    set_status(run_id, "succeeded", node="compose_answer")
     return {"answer": last["content"], "tools": last.get("tools"), "citations": last.get("citations"),
             "provenance": last.get("provenance"), "run_id": run_id, "turns": len(out["messages"]) // 2}
 
