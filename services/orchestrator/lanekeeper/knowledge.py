@@ -26,10 +26,12 @@ def embed_pending_chunks(router: ModelRouter | None = None, *, force: bool = Fal
         if not force and r["embed_model"] == target:
             continue
         e = router.embed(f"title: {r['text'][:60]} | text: {r['text']}", prefer_model=target)
+        if e.model != target:      # fell back to another space mid-batch: skip rather than mix
+            continue
         db.one("""update knowledge_chunks set embedding=%s::extensions.vector, embed_model=%s, embed_dim=%s, embed_version=%s
                   where id=%s returning 1""", (_vec(e.vector), e.model, e.dim, e.version, r["id"]))
         done += 1
-    return {"model": target, "embedded": done, "total": len(rows)}
+    return {"model": target, "embedded": done, "total": len(rows), "skipped": len(rows) - done}
 
 
 def space_for(jurisdiction_id: str) -> str | None:
