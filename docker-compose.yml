@@ -1,0 +1,13 @@
+# Optional local database for `make db-docker`. Builds PostGIS + pgvector + the no-network pg_net stub.
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: supabase/tests/Dockerfile
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 20

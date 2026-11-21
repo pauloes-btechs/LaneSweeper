@@ -1,0 +1,49 @@
+[project]
+name = "lanekeeper-orchestrator"
+version = "2.0.0a0"
+description = "LaneKeeper OS orchestrator: LangGraph agents, policy engine, approvals, model router, simulator, job runner"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph>=1.2,<2",
+  "langgraph-checkpoint-postgres>=3.2,<4",
+  "langchain-core>=1.8,<2",
+  "psycopg[binary,pool]>=3.2",
+  "pydantic>=2.9",
+  "httpx>=0.27",
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "pyyaml>=6",
+  "pyjwt>=2.9",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+lanekeeper = "lanekeeper.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lanekeeper*"]
+
+[tool.setuptools.package-data]
+lanekeeper = ["models/routes.yaml", "fixtures/*.json"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S311", "E501", "UP042", "S608"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["lanekeeper"]
+known-local-folder = ["conftest"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query"]
