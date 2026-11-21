@@ -22,8 +22,10 @@ def mock_client(handler):
 
 
 def live(monkeypatch):
+    """Simulate a configured key. Safe in CI: every test passes a MockTransport, so no request leaves the process."""
     monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
     monkeypatch.setenv("AI_MODE", "live")
+    monkeypatch.setenv("BILLABLE_CALLS_ENABLED", "true")
     config.get_settings.cache_clear()
 
 
