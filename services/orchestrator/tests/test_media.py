@@ -165,3 +165,27 @@ def test_fit_video_reencodes_over_limit_clip(tmp_path):
     assert media.fit_video(raw, limit=len(raw) + 1) is raw          # under the limit: untouched
     out = media.fit_video(raw, limit=len(raw) // 2)
     assert len(out) <= len(raw) // 2 and out[4:8] == b"ftyp"
+
+
+def test_images_get_a_2k_webp_variant_and_backfill(fresh_db, monkeypatch, tmp_path):
+    import io
+
+    from PIL import Image as PILImage
+    live(monkeypatch, tmp_path)
+    buf = io.BytesIO()
+    PILImage.new("RGB", (4096, 4096), (40, 140, 90)).save(buf, "JPEG")
+    big = buf.getvalue()
+
+    def handler(req):
+        return httpx.Response(200, json={"steps": [{"type": "image", "data": base64.b64encode(big).decode(), "mime_type": "image/jpeg"}]})
+
+    media.generate("tex-bike-lane", None, client=mock(handler))
+    row = db.one("select storage_path, web_path, web_bytes from media_assets where id='tex-bike-lane'")
+    web = PILImage.open(io.BytesIO(media.MediaStore().get(row["web_path"])))
+    assert web.size == (2048, 2048) and web.format == "WEBP"
+    item = next(a for a in media.catalog() if a["id"] == "tex-bike-lane")
+    assert item["web_url"] and item["url"] != item["web_url"]
+    # backfill: an older ready row without a web variant gets one on poll, with no model call
+    db.one("update media_assets set web_path=null, web_bytes=null where id='tex-bike-lane' returning 1")
+    assert media.poll("tex-bike-lane", client=mock(lambda r: pytest.fail("no model call")))["web"] is True
+    assert db.one("select web_path from media_assets where id='tex-bike-lane'")["web_path"]
