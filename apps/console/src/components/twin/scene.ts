@@ -139,6 +139,9 @@ export class TwinScene {
   private t0 = performance.now();
   private follow = true;
   private frames = 0;
+  private fixedT: number | null = null;
+  /** Optional scripted camera (offline renders): called each frame with the robot position. */
+  shot: ((cam: THREE.PerspectiveCamera, target: THREE.Vector3, robot: THREE.Vector3, t: number) => void) | null = null;
   frame: TwinFrame = { progress: 0, sweeping: false, state: 'queued' };
 
   constructor(private host: HTMLElement, tex: TwinTextures, quality: Quality) {
@@ -324,11 +327,14 @@ export class TwinScene {
 
   recenter() { this.follow = true; }
 
+  /** Render exactly one frame at scripted time `t` (seconds). Use after stop() for deterministic offline renders. */
+  renderAt(t: number, frame: TwinFrame) { this.fixedT = t; this.frame = frame; this.raf = -1; this.tick(); }
+
   /** Stop the render loop (tests and screenshots). */
   stop() { cancelAnimationFrame(this.raf); this.raf = -1; }
 
   private tick = () => {
-    const t = (performance.now() - this.t0) / 1000;
+    const t = this.fixedT ?? (performance.now() - this.t0) / 1000;
     const { progress, sweeping, state } = this.frame;
     const z = Z0 + (Z1 - Z0) * Math.max(0, Math.min(1, progress));
     const first = this.frames++ === 0 || Math.abs(z - this.robot.position.z) > 3;   // load or seek: snap, don't glide
@@ -350,7 +356,9 @@ export class TwinScene {
     }
     // A cyclist rides by in the traffic-side lane every ~20 s.
     this.cyclist.position.z = Z1 + 25 - ((t * 5.5) % 70);
-    if (this.follow) {
+    if (this.shot) {
+      this.shot(this.cam, this.controls.target, this.robot.position, t);
+    } else if (this.follow) {
       const want = new THREE.Vector3(this.robot.position.x - 0.85, 1.25, this.robot.position.z + 3.1);
       const look = new THREE.Vector3(this.robot.position.x + 0.15, 0.35, this.robot.position.z + 0.2);
       this.cam.position.lerp(want, first ? 1 : 0.05);
