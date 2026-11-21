@@ -239,7 +239,7 @@ def generate(asset_id: str, requested_by: str | None, *, resolution: str | None 
             _upsert(a, status="generating", model=VIDEO_MODEL, resolution=res, interaction_id=iid, error=None,
                     requested_by=requested_by)
             return {"id": a.id, "status": "generating"}
-        out = client.create_media(IMAGE_MODEL, a.prompt, {"type": "image", "mime_type": "image/png",
+        out = client.create_media(IMAGE_MODEL, a.prompt, {"type": "image", "mime_type": "image/jpeg",
                                                           "aspect_ratio": a.aspect, "image_size": res}, timeout=240)
         got = media_output(out, "image")
         if not got:
