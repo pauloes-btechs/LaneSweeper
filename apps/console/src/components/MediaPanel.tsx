@@ -46,6 +46,16 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
     setBusy(null); m.reload();
   }
 
+  const [reelUrl, setReelUrl] = useState<string | null>(null);
+  async function buildReel() {
+    setBusy('reel'); note('Demo video: building (about 1–3 min, no model calls)…');
+    try {
+      const r = await api.post<{ url: string; bytes: number; segments: number; build_s: number }>('/v1/admin/media/reel/build', { jurisdiction });
+      setReelUrl(r.url); note(`Demo video: published (${(r.bytes / 1048576).toFixed(1)} MB, ${r.segments} parts, ${r.build_s}s) → ${r.url}`);
+    } catch (e) { note(`Demo video: failed: ${(e as Error).message}`); }
+    finally { setBusy(null); }
+  }
+
   if (m.error) return <ErrorState error={m.error} />;
   if (!m.data) return <Loading />;
   const todo = m.data.assets.filter((a) => a.status !== 'ready' || a.stale);
@@ -64,6 +74,11 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
         <button className="btn" disabled={!!busy} onClick={() => void all(['image', 'texture'])}>Images + textures only</button>
         <button className="btn" disabled={!!busy} onClick={() => void all(['video'])}>Videos only</button>
         <button className="btn" disabled={!!busy} onClick={() => void optimise()}>Make web versions (2K stills, 1080p clips)</button>
+      </div>
+      <div className="row small" style={{ gap: 8 }}>
+        <button className="btn" disabled={!!busy} onClick={() => void buildReel()}>Build public demo video</button>
+        {(reelUrl ?? m.data.reel_url) && <a href={reelUrl ?? m.data.reel_url!} target="_blank" rel="noreferrer">Public demo video link</a>}
+        <span className="muted">Joins the generated clips and stills with the recorded walkthrough; published to a public link.</span>
       </div>
       <table className="data small"><thead><tr><th>Asset</th><th>Kind</th><th>Truth</th><th>Status</th><th>Size</th><th /></tr></thead><tbody>
         {m.data.assets.map((a) => (
