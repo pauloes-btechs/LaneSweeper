@@ -99,3 +99,24 @@ def test_hosted_demo_identities_need_an_explicit_second_flag(monkeypatch):
     assert not config.demo_identities_allowed()                 # hosted: off unless the owner opts in
     monkeypatch.setenv("LK_DEMO_ALLOW_HOSTED", "1")
     assert config.demo_identities_allowed()
+
+
+def test_serverless_does_not_hold_db_connections(monkeypatch):
+    from psycopg_pool import ConnectionPool, NullConnectionPool
+    for k in ("VERCEL", "LK_DB_HOLD_CONNECTIONS"):
+        monkeypatch.delenv(k, raising=False)
+    assert config.hold_connections()
+    monkeypatch.setenv("VERCEL", "1")
+    assert not config.hold_connections()
+    p = config.make_pool("postgresql://postgres:postgres@localhost:5432/lanekeeper", max_size=2, kwargs={})
+    try:
+        assert isinstance(p, NullConnectionPool)
+        with p.connection() as c:
+            assert c.execute("select 1").fetchone()[0] == 1
+        assert p.get_stats().get("pool_size", 0) == 0          # nothing kept open after use
+    finally:
+        p.close()
+    monkeypatch.setenv("LK_DB_HOLD_CONNECTIONS", "1")
+    assert config.hold_connections()
+    assert not isinstance(config.make_pool("postgresql://x@localhost/y", max_size=1, kwargs={}), NullConnectionPool) or False
+    assert issubclass(NullConnectionPool, ConnectionPool)

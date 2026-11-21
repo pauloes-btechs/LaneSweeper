@@ -13,7 +13,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from .config import get_settings, pool_max, session_mode
+from .config import get_settings, make_pool, pool_max
 
 _pool: ConnectionPool | None = None
 
@@ -21,8 +21,7 @@ _pool: ConnectionPool | None = None
 def pool() -> ConnectionPool:
     global _pool
     if _pool is None:
-        _pool = ConnectionPool(session_mode(get_settings().database_url), min_size=0, max_size=pool_max(8), open=True,
-                               kwargs={"row_factory": dict_row, "autocommit": False})
+        _pool = make_pool(get_settings().database_url, max_size=pool_max(8), kwargs={"row_factory": dict_row, "autocommit": False})
     return _pool
 
 

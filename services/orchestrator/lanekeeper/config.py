@@ -78,6 +78,22 @@ def pool_max(default: int) -> int:
     return int(os.environ.get("LK_DB_POOL_MAX", default))
 
 
+def hold_connections() -> bool:
+    """Keep idle DB connections between requests? Yes for a long-running server. No on serverless (Vercel):
+    frozen and superseded instances would keep their sessions, and Supabase's session pooler allows only 15."""
+    v = os.environ.get("LK_DB_HOLD_CONNECTIONS")
+    if v is not None:
+        return v.strip().lower() in ("1", "true", "yes", "on")
+    return not os.environ.get("VERCEL")
+
+
+def make_pool(url: str, *, max_size: int, kwargs: dict, configure=None):
+    """A normal pool locally; a NullConnectionPool (connect per use, close on return) on serverless."""
+    from psycopg_pool import ConnectionPool, NullConnectionPool
+    cls = ConnectionPool if hold_connections() else NullConnectionPool
+    return cls(session_mode(url), min_size=0, max_size=max_size, open=True, kwargs=kwargs, configure=configure)
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     key = os.environ.get("GOOGLE_API_KEY") or None
