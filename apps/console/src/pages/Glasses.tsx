@@ -30,8 +30,25 @@ function useImages(ids: string[]) {
   return imgs;
 }
 
+// Optional: a locally produced POV clip (see demo-media/README.md). Absent by default; synthetic frames are used then.
+const CLIP_URL = '/media/shot2-glasses-pov.mp4';
+function useOptionalClip() {
+  const [clip, setClip] = useState<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const v = document.createElement('video');
+    v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+    v.onloadeddata = () => setClip(v);
+    v.onerror = () => setClip(null);
+    v.src = CLIP_URL;
+    return () => { v.pause(); v.removeAttribute('src'); };
+  }, []);
+  return clip;
+}
+
 export default function Glasses() {
   const imgs = useImages(RIDE);
+  const clip = useOptionalClip();
+  const [useClip, setUseClip] = useState(false);
   const pov = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLCanvasElement>(null);
   const work = useMemo(() => document.createElement('canvas'), []);
@@ -79,8 +96,9 @@ export default function Glasses() {
   }, [running]);
 
   useEffect(() => {
-    const fid = RIDE[step]!;
-    const im = imgs[fid];
+    const clipMode = useClip && clip !== null;
+    const fid = clipMode ? `local-clip@${clip.currentTime.toFixed(1)}s` : RIDE[step]!;
+    const im: CanvasImageSource | undefined = clipMode ? clip : imgs[RIDE[step]!];
     const c = pov.current;
     if (!im || !c) return;
     const ctx = c.getContext('2d')!;
@@ -96,7 +114,7 @@ export default function Glasses() {
     const speed = kmh / 3.6;
     const decision = warn.decide(db.stable, speed, Date.now());
     if (decision.alert) { void adapter.showAlert(decision.alert); void adapter.playAudio(decision.speak!); }
-    if (d.label === 'possible_glass' && (!best.current || d.score > best.current.d.score)) best.current = { frame: fid, d, step };
+    if (!clipMode && d.label === 'possible_glass' && (!best.current || d.score > best.current.d.score)) best.current = { frame: fid, d, step };
     setLast(d);
     setLog((l) => [{ t: new Date().toLocaleTimeString(), frame: fid, d, stable: db.stable, alert: decision.alert?.text ?? null }, ...l].slice(0, 40));
     // HUD layer: black = see-through on waveguide glasses; one glyph, one line
@@ -105,7 +123,9 @@ export default function Glasses() {
       h.clearRect(0, 0, 640, 480);
       if (d.box && d.label === 'possible_glass') { h.strokeStyle = '#ffd400'; h.lineWidth = 3; h.strokeRect(d.box.x, d.box.y, d.box.w, d.box.h); }
     }
-  }, [step, imgs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, imgs, useClip]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (!clip) return; if (useClip && running) void clip.play(); else clip.pause(); }, [clip, useClip, running]);
 
   async function report() {
     const b = best.current;
@@ -163,9 +183,11 @@ export default function Glasses() {
               <label className="field small">Speed<input type="range" min={0} max={30} value={kmh} onChange={(e) => setKmh(Number(e.target.value))} aria-label="Speed km/h" /></label>
               <label className="row small"><input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />phone link online</label>
               <label className="row small"><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />spoken warning</label>
+              {clip && <label className="row small"><input type="checkbox" checked={useClip} onChange={(e) => setUseClip(e.target.checked)} />use local clip (detection only)</label>}
             </div>
             <div className="row">
-              <button onClick={() => void report()} disabled={kmh > 3} title={kmh > 3 ? 'Stop first: reporting is only offered when stopped' : ''}>Report hazard (when stopped)</button>
+              <button onClick={() => void report()} disabled={kmh > 3 || (useClip && clip !== null)}
+                title={useClip && clip ? 'Local clips are for detection demos; reports use labelled fixtures' : kmh > 3 ? 'Stop first: reporting is only offered when stopped' : ''}>Report hazard (when stopped)</button>
               {!link && <button onClick={() => void pair()}>Pair simulated glasses</button>}
               <span className="small muted">{linkMsg} · queued: {queued}</span>
             </div>
@@ -177,7 +199,7 @@ export default function Glasses() {
           <div className="stack">
             <div className="card"><h3>On-device detector</h3>
               {last ? <table className="data small"><tbody>
-                <tr><td>Frame</td><td className="mono">{RIDE[step]}</td></tr>
+                <tr><td>Frame</td><td className="mono">{log[0]?.frame ?? RIDE[step]}</td></tr>
                 <tr><td>Label</td><td><strong>{last.label}</strong> (score {last.score}, a heuristic, not a probability)</td></tr>
                 <tr><td>Glints / streaks / blobs</td><td>{last.specks} / {last.streaks} / {last.blobs}</td></tr>
                 <tr><td>Compute</td><td>{last.ms} ms in this browser · {last.model}</td></tr>

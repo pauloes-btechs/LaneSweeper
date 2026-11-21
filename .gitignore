@@ -32,3 +32,6 @@ Microlumin_Ship/
 demo-output/
 *.log
 .DS_Store
+
+# locally produced demo clips (see demo-media/README.md)
+apps/console/public/media/*.mp4
