@@ -44,7 +44,8 @@ REGISTRY: dict[str, ToolSpec] = {}
 
 def tool(name: str, *, permission: str, side_effect: SideEffect, effect: str):
     def deco(fn):
-        args_model = fn.__annotations__["args"]
+        import typing
+        args_model = typing.get_type_hints(fn, globalns=fn.__globals__)["args"]   # resolve postponed annotations
         REGISTRY[name] = ToolSpec(name, (fn.__doc__ or "").strip(), args_model, permission, side_effect, fn, effect)
         return fn
     return deco
