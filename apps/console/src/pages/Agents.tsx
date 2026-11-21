@@ -9,7 +9,7 @@ import type { Approval, TraceEvent } from '../lib/types';
 interface Run { id: string; workflow: string; thread_id: string; status: string; current_node: string | null; started_at: string; error: string | null }
 interface Shape { nodes: string[]; edges: Array<{ source: string; target: string; conditional: boolean }> }
 
-function ApprovalCard({ a, onDone }: { a: Approval; onDone: () => void }) {
+function ApprovalCard({ a, onDone }: { a: Approval; onDone: (outcome: { tone: string; text: string }) => void }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: string; text: string } | null>(null);
@@ -18,14 +18,15 @@ function ApprovalCard({ a, onDone }: { a: Approval; onDone: () => void }) {
     setBusy(true); setMsg(null);
     try {
       await api.post(`/v1/approvals/${a.id}/decide`, { approve, reason });
+      let text: string;
       if (approve && a.thread_id) {
         const r = await api.post<{ outcome?: string; status: string }>(`/v1/threads/${encodeURIComponent(a.thread_id)}/resume`, { kind: 'approval' });
-        setMsg({ tone: 'info', text: `Approved and graph resumed → ${r.outcome ?? r.status}` });
+        text = `Approved and graph resumed → ${r.outcome ?? r.status}`;
       } else if (!approve && a.thread_id) {
         await api.post(`/v1/threads/${encodeURIComponent(a.thread_id)}/resume`, { kind: 'approval' });
-        setMsg({ tone: 'info', text: 'Denied. No robot movement; ticket preserved and escalated.' });
-      } else setMsg({ tone: 'info', text: approve ? 'Approved.' : 'Denied.' });
-      onDone();
+        text = 'Denied. No robot movement; ticket preserved and escalated.';
+      } else text = approve ? 'Approved.' : 'Denied.';
+      onDone({ tone: 'info', text: `${a.robot_id ?? ''} ${text}`.trim() });   // the card unmounts on refresh; the page keeps the outcome
     } catch (e) { setMsg({ tone: 'err', text: (e as Error).message }); } finally { setBusy(false); }
   }
   const payload = a.payload as { robot_id?: string; route_cell_ids?: string[]; window_start?: string; window_end?: string; simulation_mode?: boolean };
@@ -90,14 +91,16 @@ function Body() {
   const approvals = useApi<Approval[]>('/v1/approvals?status=pending', { poll: 4000 });
   const runs = useApi<Run[]>('/v1/runs?limit=40', { poll: 4000 });
   const sel = params.get('run') ?? runs.data?.[0]?.id ?? null;
+  const [outcome, setOutcome] = useState<{ tone: string; text: string } | null>(null);
   return (
     <div className="stack" style={{ gap: 16 }}>
       <div className="row between"><h1>Agents & Approvals</h1><span className="small muted">Every approval is bound to one action, one payload hash, one approver and an expiry; it is re-checked on resume and at the tool.</span></div>
       <div className="grid g2">
         <div className="stack">
           <h2>Pending approvals</h2>
+          {outcome && <div className={`callout ${outcome.tone}`} role="status">{outcome.text}</div>}
           {approvals.error ? <ErrorState error={approvals.error} /> : !approvals.data ? <Loading /> : approvals.data.length === 0 ? <Empty>Nothing waiting for a decision.</Empty> :
-            approvals.data.map((a) => <ApprovalCard key={a.id} a={a} onDone={() => { approvals.reload(); runs.reload(); }} />)}
+            approvals.data.map((a) => <ApprovalCard key={a.id} a={a} onDone={(o) => { setOutcome(o); approvals.reload(); runs.reload(); }} />)}
           <div className="card"><h3>Recent graph runs</h3>
             {!runs.data ? <Loading /> : <table className="data small"><thead><tr><th>Run</th><th>Graph</th><th>Status</th><th>At</th></tr></thead><tbody>
               {runs.data.map((r) => <tr key={r.id} className="click" onClick={() => setParams({ run: r.id })}><td className="mono">{short(r.id)}</td><td>{r.workflow}</td><td><Chip v={r.status} /></td><td>{ago(r.started_at)}</td></tr>)}</tbody></table>}
