@@ -1,8 +1,8 @@
 """Official demo reel: joins pre-rendered segments (title cards, captioned console recordings, the twin render and
-overlay PNGs, published as a GitHub release) with the AI-generated clips and stills from private storage, then
+overlay PNGs, kept in demo-media/reel) with the AI-generated clips and stills from private storage, then
 publishes one 1080p MP4 to the public `demo` bucket. No model calls: building the reel costs nothing.
 
-The release holds a manifest (`reel.json`) listing segments. It is validated strictly: names are plain file names,
+The parts folder holds a manifest (`reel.json`) listing segments. It is validated strictly: names are plain file names,
 asset ids must be in the media catalog, and numbers are bounded. Nothing from the manifest is passed to a shell.
 """
 from __future__ import annotations
@@ -18,9 +18,11 @@ from pathlib import Path
 
 from . import db
 from .media import BY_ID, MediaError, MediaStore
+from .storage import REPO_ROOT
 
-ASSETS_URL = os.environ.get("LK_REEL_ASSETS_URL",
-                            "https://github.com/pauloes-btechs/LaneSweeper/releases/download/demo-assets-v1")
+# Pre-rendered parts ship with the code (demo-media/reel, bundled into the Vercel function). A URL can override.
+PARTS_DIR = Path(os.environ.get("LK_REEL_PARTS_DIR", REPO_ROOT / "demo-media" / "reel"))
+ASSETS_URL = os.environ.get("LK_REEL_ASSETS_URL", "")
 PUBLIC_BUCKET = "demo"
 REEL_NAME = "lanekeeper-os-demo.mp4"
 W, H, FPS = 1920, 1080, 30
@@ -43,6 +45,8 @@ def _fetch(name: str, dest: Path, fetch=None) -> Path:
     if not p.exists():
         if fetch:
             p.write_bytes(fetch(name))
+        elif not ASSETS_URL and (PARTS_DIR / name).is_file():
+            return PARTS_DIR / name
         else:
             if not ASSETS_URL.startswith("https://"):
                 raise MediaError("reel assets must come from https")
