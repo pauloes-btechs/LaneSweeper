@@ -1,0 +1,59 @@
+# Model routing is data, not code. Each task -> ordered candidates; the first live-capable candidate
+# within budget is used, otherwise the offline substitute. IDs verified against Google docs 2026-11-21;
+# run `lanekeeper models-verify` to confirm what YOUR key can call.
+version: 2026.11.1
+routes:
+  evidence.decide:
+    purpose: Advisory yes/no, category and severity judgements on report evidence
+    api: decisions
+    candidates: [gemini-decision-1]
+    offline: fixture_decider
+    per_minute: 30
+    per_day: 2000
+    timeout_s: 20
+  vision.localize:
+    purpose: Locate candidate glass/debris in an image; points [y,x] normalised 0-1000
+    api: interactions
+    candidates: [gemini-robotics-er-2-preview]
+    offline: fixture_vision
+    thinking_level: medium
+    per_minute: 20
+    per_day: 1000
+    timeout_s: 45
+  vision.compare:
+    purpose: Before/after cleanup comparison for remediation verification
+    api: interactions
+    candidates: [gemini-robotics-er-2-preview]
+    offline: fixture_vision
+    thinking_level: medium
+    per_minute: 20
+    per_day: 1000
+    timeout_s: 45
+  reason.agent:
+    purpose: Copilot answers, operator recommendations, ticket summaries, plan trade-off explanations
+    api: generate_content
+    candidates: [gemini-4-hydrogen, gemini-3.6-flash]
+    offline: template_reasoner
+    per_minute: 30
+    per_day: 2000
+    timeout_s: 60
+  text.fast:
+    purpose: Extract structured fields from rider notes; short rider status messages
+    api: generate_content
+    candidates: [gemini-3.5-flash-lite]
+    offline: template_reasoner
+    per_minute: 60
+    per_day: 5000
+    timeout_s: 20
+  embed:
+    purpose: Incident similarity, SOP retrieval, memory (768-dim)
+    api: embed_content
+    candidates: [gemini-embedding-2, gemini-embedding-2-preview]
+    offline: hash_embedder
+    dimensions: 768
+    per_minute: 120
+    per_day: 10000
+    timeout_s: 20
+optional:
+  # Not used unless explicitly enabled per request by an owner: paid / limited.
+  reason.deep: [gemini-4-carbon, gemini-4-argon]
