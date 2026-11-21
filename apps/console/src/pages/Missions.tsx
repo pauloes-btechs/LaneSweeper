@@ -11,7 +11,7 @@ interface MissionRow { id: string; robot_id: string; status: string; scenario: s
   abort_reason: string | null; operation_id: string; approved_by: string; route_cell_ids: string[]; estimates: Record<string, number | string>; report_slug: string | null }
 interface Tele { sim_time_s: number; cell_id: string; speed_mps: number; battery_pct: number; hopper_pct: number; state: string; lat: number; lng: number }
 interface MissionFull {
-  id: string; robot_id: string; status: string; scenario: string | null; abort_reason: string | null; operation_id: string; dispatched_at: string;
+  id: string; robot_id: string; status: string; scenario: string | null; abort_reason: string | null; operation_id: string; dispatched_at: string; thread_id: string | null;
   stops: Array<{ seq: number; cell_id: string; planned_eta_s: number; status: string }>;
   events: Array<{ event_id: string; sim_time_s: number; kind: string; actor: string; detail: Record<string, unknown> }>;
   faults: Array<{ code: string; severity: string; safety_action: string; opened_at: string; cleared_at: string | null; cleared_by: string | null }>;
@@ -50,6 +50,7 @@ function DetailBody() {
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [jamCleared, setJamCleared] = useState(false);
   const tele = m.data?.telemetry ?? [];
   useEffect(() => {
     if (!playing) return;
@@ -67,6 +68,15 @@ function DetailBody() {
   const d = m.data;
   const cur = tele[Math.min(i, Math.max(0, tele.length - 1))];
   const evAt = d.events.filter((e) => cur && e.sim_time_s <= cur.sim_time_s);
+  async function resolveSafety(action: 'resume' | 'abort') {
+    if (!d.thread_id) { setMsg('No ticket thread is linked to this mission.'); return; }
+    try {
+      const r = await api.post<{ status: string; outcome?: string }>(`/v1/threads/${encodeURIComponent(d.thread_id)}/resume`,
+        { kind: 'safety', action, link_restored: true, jam_cleared: jamCleared });
+      setMsg(action === 'resume' ? `Resume accepted by the local safety controller → ${r.outcome ?? r.status}` : 'Mission aborted after safety pause.');
+      m.reload();
+    } catch (e) { setMsg(`Refused: ${(e as Error).message}`); }
+  }
   async function stop() {
     try { await api.post(`/v1/missions/${d.id}/stop`, { reason: 'operator pressed stop in console' }); setMsg('Mission aborted; robot returned to depot.'); m.reload(); }
     catch (e) { setMsg(`Refused: ${(e as Error).message}`); }
@@ -79,6 +89,14 @@ function DetailBody() {
           <div className="muted small">{d.robot_id} · scenario {d.scenario ?? 'nominal'} · operation <span className="mono">{short(d.operation_id)}</span>{d.abort_reason && ` · ${d.abort_reason}`}</div></div>
         <button className="danger" onClick={() => void stop()} disabled={['completed', 'aborted', 'failed'].includes(d.status)}>Stop / abort mission</button>
       </div>
+      {d.status === 'paused_safety' && <div className="callout warn small stack" role="region" aria-label="Safety pause">
+        <strong>Paused by the local safety controller.</strong>
+        <span>Supervisors may resume only when the controller allows it; a jam must be cleared by a technician first. Agents cannot resume.</span>
+        <div className="row">
+          <label className="row small"><input type="checkbox" checked={jamCleared} onChange={(e) => setJamCleared(e.target.checked)} /> Technician confirmed jam cleared</label>
+          <button onClick={() => void resolveSafety('resume')}>Supervisor resume</button>
+          <button className="danger" onClick={() => void resolveSafety('abort')}>Abort mission</button>
+        </div></div>}
       {msg && <div className="callout info small" role="status">{msg}</div>}
       <div className="grid g-side">
         <div className="card stack">
