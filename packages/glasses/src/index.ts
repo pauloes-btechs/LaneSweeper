@@ -1,3 +1,4 @@
+export * from './agent';
 export * from './adapter';
 export * from './debounce';
 export * from './detector';
