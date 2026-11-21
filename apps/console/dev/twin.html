@@ -1,0 +1,14 @@
+<!doctype html>
+<!-- Dev-only harness for the digital-twin renderer (not part of the build): /dev/twin.html?p=0.4&sweep=1&q=ultra -->
+<html><head><meta charset="utf-8"><title>Twin preview</title>
+<style>html,body{margin:0;height:100%;background:#000}#v{width:100vw;height:100vh}</style></head>
+<body><div id="v"></div>
+<script type="module">
+  import { TwinScene } from '/src/components/twin/scene.ts';
+  const q = new URLSearchParams(location.search);
+  const t = new TwinScene(document.getElementById('v'), {}, q.get('q') === 'ultra' ? 'ultra' : 'hd');
+  const p0 = Number(q.get('p') ?? 0.35);
+  t.frame = { progress: p0, sweeping: q.get('sweep') === '1', state: q.get('state') ?? 'sweeping' };
+  window.__twin = t;
+  setTimeout(() => { t.stop(); window.__ready = true; }, Number(q.get('ms') ?? 6000));
+</script></body></html>
