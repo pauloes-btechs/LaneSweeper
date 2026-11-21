@@ -7,10 +7,11 @@ import uuid
 import pytest
 from PIL import Image
 
-from conftest import USERS
 from lanekeeper import auth, db, devices
 from lanekeeper.graphs import glasses
 from lanekeeper.privacy import minimise_frame
+
+from conftest import USERS
 
 pytestmark = pytest.mark.db
 
