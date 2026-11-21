@@ -21,7 +21,7 @@ What separates this demo from something a city could run. Honest by design: **ev
 - Observability export (OpenTelemetry) beyond `agent_events` and `model_calls`.
 - Accessibility audit of the console and rider PWA (WCAG 2.2 AA).
 - Privacy impact assessment and a records-retention schedule approved by city counsel.
-- Load test: the fleet graph has only been run up to 12 simulated robots.
+- Load test: the fleet graph has only been run with 2–10 simulated robots (the demo endpoint caps it at 10).
 - Penetration test and an independent review of the RLS policies.
 - Fix the pre-existing public read on `frame_checks` (from the original schema).
 
