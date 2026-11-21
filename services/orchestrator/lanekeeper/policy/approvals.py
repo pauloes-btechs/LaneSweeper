@@ -78,10 +78,20 @@ def decide(principal: Principal, approval_id: str, approve: bool, reason: str, *
             raise ApprovalError("approval not found")
         d = check(principal, a["jurisdiction_id"], a["required_permission"], SideEffect.SIMULATION)
         if not d.allowed:
+            denied = d.reason
+        else:
+            denied = None
+    if denied:
+        # Audit the refused attempt in its own transaction so it survives the error below.
+        with db.tx() as cur:
             audit(cur, actor=principal.user_id or "anonymous", action=f"approval.{'approve' if approve else 'deny'}",
-                  outcome="denied", reason=d.reason, target=approval_id, trace_id=trace_id,
+                  outcome="denied", reason=denied, target=approval_id, trace_id=trace_id,
                   detail={"requested_jurisdiction": a["jurisdiction_id"]})
-            raise ApprovalError(d.reason)
+        raise ApprovalError(denied)
+    with db.tx() as cur:
+        cur.execute("select *, id::text as id, operation_id::text as operation_id, jurisdiction_id::text as jurisdiction_id "
+                    "from approval_requests where id = %s for update", (approval_id,))
+        a = cur.fetchone()
         if a["status"] != "pending":
             raise ApprovalError(f"approval is {a['status']}")
         if a["expires_at"] <= datetime.now(UTC):
