@@ -147,6 +147,13 @@ def run(mission_id: str, deps: Deps, *, max_wall_s: float = 20.0) -> dict:
         _set_mission(cx, "running")
         _emit(cx, "started", "simulator", {"scenario": cx.scenario.key, "seed": cx.mission["seed"], "provenance": "SIMULATED",
                                            "robot": cx.robot["id"], "route_cells": len(cx.stops)})
+        est = (db.one("select estimates from mission_proposals where id=%s", (cx.mission["proposal_id"],)) or {}).get("estimates") or {}
+        leg = float(est.get("depot_leg_in_m", 0))
+        if leg:
+            cx.t += leg / SPEED_MPS
+            _drain(cx, leg)
+            _emit(cx, "transit_to_lane", "simulator", {"distance_m": round(leg), "battery_pct": round(cx.robot["battery_pct"], 1),
+                                                      "note": "depot leg (estimate-based, synthetic)"})
     route_len = max(1, len(cx.stops))
     for i, stop in enumerate(cx.stops):
         if stop["status"] != "pending":
@@ -158,7 +165,7 @@ def run(mission_id: str, deps: Deps, *, max_wall_s: float = 20.0) -> dict:
                    connection=cx.robot.get("connectivity") or "online")
         outcome = None
         for inj in cx.scenario.injections:
-            if i / route_len >= inj.at_frac and inj.label not in cx.fired:
+            if (i + 1) / route_len >= inj.at_frac and inj.label not in cx.fired:   # progress on arrival
                 cx.fired.add(inj.label)
                 outcome = _handle_injection(cx, safety, inj, obs, cell, stop)
                 if outcome in ("paused", "blocked"):
