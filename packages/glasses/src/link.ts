@@ -9,7 +9,7 @@ function hex(buf: ArrayBuffer): string {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-export async function sha256Hex(data: Uint8Array | string): Promise<string> {
+export async function sha256Hex(data: Uint8Array<ArrayBuffer> | string): Promise<string> {
   const bytes = typeof data === 'string' ? enc.encode(data) : data;
   return hex(await crypto.subtle.digest('SHA-256', bytes));
 }
