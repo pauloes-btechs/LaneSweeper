@@ -44,3 +44,6 @@ ignore = ["S101", "S311", "E501", "UP042", "S608"]
 [tool.ruff.lint.isort]
 known-first-party = ["lanekeeper"]
 known-local-folder = ["conftest"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query"]
