@@ -1,6 +1,6 @@
 # Demo media: storyboard and Veo / AI Studio prompt library
 
-**No video was generated for this repository.** This folder is a production brief. If you generate clips (Veo through AI Studio or Vertex, or your own footage), put them in `apps/console/public/media/` with the filenames below. The Glasses simulator and the console pick them up without code changes, and they fall back to the built-in synthetic frames when the files are missing.
+**No video was generated for this repository.** This folder is a production brief. If you generate clips (Veo through AI Studio or Vertex, or your own footage), put them in `apps/console/public/media/` with the filenames below (git-ignored). Today only **`shot2-glasses-pov.mp4`** is wired in: when present, the Glasses simulator shows a *use local clip* toggle and runs the same on-device detector on the clip's frames (detection only, since reports keep using labelled fixtures). Without the file, the simulator uses the synthetic frames. The other clips are for an edited video.
 
 ## Ground rules for every shot
 
