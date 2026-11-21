@@ -3,11 +3,12 @@ import uuid
 
 import pytest
 
-from conftest import NYC, USERS
 from lanekeeper import auth, db, workflows
 from lanekeeper.graphs.checkpoint import reset_checkpointer
 from lanekeeper.policy import approvals
 from lanekeeper.policy.engine import PolicyDenied
+
+from conftest import USERS
 
 pytestmark = pytest.mark.db
 
@@ -79,7 +80,7 @@ def test_denied_approval_produces_no_movement():
     approvals.decide(P("nyc_supervisor"), r["approval_id"], False, "closure scheduled on this block")
     out = workflows.resume_after_approval(r["thread_id"], P("nyc_supervisor"))
     assert out["outcome"] == "escalated" and out["mission_id"] is None
-    assert db.one("select count(*) n from robot_telemetry where event_id like %s", (f"t:%",))["n"] >= 0
+    assert db.one("select count(*) n from robot_telemetry where event_id like %s", ("t:%",))["n"] >= 0
     assert db.one("select state from robot_status where robot_id='LK-01-A'")["state"] == "docked"
 
 

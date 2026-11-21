@@ -1,6 +1,5 @@
 """Copilot + tool boundary: least privilege, tenant binding, prompt-injection resistance, no silent dispatch."""
 import pytest
-from conftest import HARBOR, NYC, USERS
 from pydantic import ValidationError
 
 from lanekeeper import auth, db, knowledge
@@ -10,6 +9,8 @@ from lanekeeper.models.router import ModelRouter
 from lanekeeper.models.types import Provenance, TextResult
 from lanekeeper.policy.engine import PolicyDenied
 from lanekeeper.tools import REGISTRY, ToolCtx, ToolDenied, invoke
+
+from conftest import HARBOR, NYC, USERS
 
 pytestmark = pytest.mark.db
 

@@ -1,10 +1,11 @@
 """Policy engine and approval service (Python layer above the SQL ledger)."""
 import pytest
-from conftest import HARBOR, NYC, USERS
 
 from lanekeeper import auth, db
 from lanekeeper.policy import approvals
 from lanekeeper.policy.engine import PolicyDenied, SideEffect, check, invalidate_matrix_cache
+
+from conftest import HARBOR, NYC, USERS
 
 pytestmark = pytest.mark.db
 
