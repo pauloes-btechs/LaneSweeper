@@ -32,10 +32,16 @@ def extract_and_verify_location(state: dict, deps: Deps) -> dict:
     elif others and others[0]["distance_m"] - best["distance_m"] < DEFAULTS["boundary_review_m"]:
         status, why = "boundary_review", (f"Within {DEFAULTS['boundary_review_m']} m of another district/jurisdiction "
                                           f"({others[0]['district_id']}); manual review required")
-    elif len(rows) > 1 and rows[1]["cell_id"] != best["cell_id"] and abs(rows[1]["distance_m"] - best["distance_m"]) < 2 \
-            and acc and acc > 15:
-        status, why = "ambiguous", f"Two cells equally close ({best['cell_id']}, {rows[1]['cell_id']}) at this accuracy"
+    elif len(rows) > 1 and abs(rows[1]["distance_m"] - best["distance_m"]) < 2 and acc and acc > 15 \
+            and not _adjacent_same_lane(best["cell_id"], rows[1]["cell_id"]):
+        # Neighbouring cells of the same lane are not ambiguous (either is the right place); different lanes are.
+        status, why = "ambiguous", f"Two different lane cells equally close ({best['cell_id']}, {rows[1]['cell_id']}) at this accuracy"
     return _write(state, best["cell_id"], jid, status, best["distance_m"], why)
+
+
+def _adjacent_same_lane(a: str, b: str) -> bool:
+    r = db.all_rows("select id, segment_id, seq from lane_cells where id in (%s, %s)", (a, b))
+    return len(r) == 2 and r[0]["segment_id"] == r[1]["segment_id"] and abs(r[0]["seq"] - r[1]["seq"]) <= 1
 
 
 def _write(state: dict, cell: str | None, jid: str | None, status: str, dist: float | None, why: str) -> dict:
