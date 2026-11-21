@@ -231,3 +231,24 @@ def model_status(p: Principal = Depends(principal)):
             "daily_cap": s.ai_daily_cap, "per_minute_cap": s.ai_per_minute_cap, "usage_today": usage,
             "routes": {k: {"candidates": v["candidates"], "api": v["api"], "offline": v["offline"]} for k, v in routes().items()},
             "recent_calls": db.all_rows("select at, route, model, mode, outcome, latency_ms from model_calls order by id desc limit 25")}
+
+
+CONSOLE_TOOLS = {"draft_work_order", "propose_assignment", "request_verification", "request_dispatch_approval", "draft_rider_notice",
+                 "get_sweeper_availability", "export_aggregate_metrics", "retrieve_sop", "search_tickets"}
+
+
+@router.post("/tools/{name}")
+def run_tool(name: str, body: dict, p: Principal = Depends(principal)):
+    """Console buttons call the same typed, policy-checked tools the agents use (no bespoke write paths)."""
+    from pydantic import ValidationError
+
+    from ..tools import ToolCtx, ToolDenied, invoke
+    if name not in CONSOLE_TOOLS:
+        raise HTTPException(404, "unknown tool")
+    jid = jurisdiction_for(staff(p), body.pop("jurisdiction", None))
+    try:
+        return {"tool": name, "result": invoke(name, ToolCtx(principal=p, jurisdiction_id=jid), body)}
+    except ToolDenied as e:
+        raise HTTPException(403, str(e)) from e
+    except ValidationError as e:
+        raise HTTPException(422, e.errors(include_input=False, include_context=False)) from e
