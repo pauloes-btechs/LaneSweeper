@@ -13,6 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -194,7 +196,32 @@ def _client() -> GoogleClient:
     return GoogleClient(s.google_api_key)
 
 
+def fit_video(data: bytes, limit: int = MAX_BYTES) -> bytes:
+    """Re-encode an over-limit clip (4K output runs ~60 MB per 8 s) to H.264 so it fits the storage limit.
+    Keeps the resolution; tries a high-quality CRF first and steps down only if still too big."""
+    if len(data) <= limit:
+        return data
+    try:
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception as e:   # noqa: BLE001
+        raise MediaError("clip is over 50 MB and ffmpeg is unavailable to re-encode it") from e
+    with tempfile.TemporaryDirectory() as d:
+        src, dst = Path(d) / "in.mp4", Path(d) / "out.mp4"
+        src.write_bytes(data)
+        for crf in (21, 24, 27):
+            subprocess.run([exe, "-y", "-loglevel", "error", "-i", str(src), "-c:v", "libx264", "-preset", "veryfast",  # noqa: S603
+                            "-crf", str(crf), "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-c:a", "aac", "-b:a", "128k",
+                            str(dst)], check=True, timeout=240)
+            out = dst.read_bytes()
+            if len(out) <= limit:
+                return out
+    raise MediaError("clip still over 50 MB after re-encoding; use 1080p for this clip")
+
+
 def _save(a: Asset, data: bytes, mime: str, model: str, resolution: str) -> dict:
+    if mime.startswith("video/"):
+        data = fit_video(data)
     if len(data) > MAX_BYTES:
         raise MediaError(f"generated file is {len(data) // (1024 * 1024)} MB, over the 50 MB storage limit; "
                          "use 1080p for this clip")

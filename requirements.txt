@@ -9,3 +9,4 @@ fastapi>=0.115
 pyyaml>=6
 pyjwt>=2.9
 pillow>=10
+imageio-ffmpeg>=0.5   # bundled ffmpeg: re-encode 4K clips under the 50 MB storage limit
