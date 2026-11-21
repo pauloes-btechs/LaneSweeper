@@ -36,7 +36,7 @@ select route, model, mode, count(*) from model_calls where at > now()-interval '
 | Resume rejected "payload changed" | the plan was edited after approval | Expected. Re-plan, which creates a new approval. |
 | Twin mission `paused_safety` | jam or lost link | Console → Missions → mission → **Supervisor resume** or **Abort** (API: `POST /v1/threads/{thread}/resume` with `kind: safety`). The controller refuses a resume while a hazard is present. A jam needs the technician confirmation first. |
 | Job in `dead_letter` | `max_attempts` (default 5) reached | Read `job_attempts.error`, fix, then `update jobs set status='pending', attempts=0 where id=…` |
-| Glasses reports rejected 401 | clock skew > 300 s or revoked device | Sync device time; re-pair in Settings |
+| Glasses reports rejected 401 | clock skew > 300 s or revoked device | Sync device time; re-pair from the Glasses simulator (**Pair**) |
 
 ## Emergency stop
 
