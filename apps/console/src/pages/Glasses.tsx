@@ -153,7 +153,7 @@ export default function Glasses() {
             <div style={{ position: 'relative', width: '100%', maxWidth: 640, aspectRatio: '4 / 3', background: '#000', borderRadius: 10, overflow: 'hidden' }}>
               <canvas ref={pov} width={640} height={480} style={{ width: '100%', height: '100%' }} aria-label="Rider point of view (synthetic frames)" />
               <canvas ref={hudRef} width={640} height={480} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true" />
-              <div style={{ position: 'absolute', top: 10, left: 12, font: '600 12px var(--mono)', color: '#ffd400', letterSpacing: '.06em' }}>SIMULATED GLASSES · {kmh} km/h · {online ? 'LINK OK' : 'OFFLINE'}</div>
+              <div style={{ position: 'absolute', top: 30, left: 12, font: '600 12px var(--mono)', color: '#ffd400', letterSpacing: '.06em' }}>SIMULATED GLASSES · {kmh} km/h · {online ? 'LINK OK' : 'OFFLINE'}</div>
               {hudText && <div role="alert" style={{ position: 'absolute', left: '50%', bottom: 26, transform: 'translateX(-50%)', background: 'rgba(0,0,0,.78)', color: '#ffd400',
                 font: '600 20px "IBM Plex Sans"', padding: '8px 16px', borderRadius: 8, border: '2px solid #ffd400' }}>⚠ {hudText}</div>}
             </div>
