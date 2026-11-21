@@ -55,7 +55,7 @@ def test_image_generation_request_shape_and_local_store(fresh_db, monkeypatch, t
     assert r["status"] == "ready"
     assert seen["url"].endswith("/interactions")
     assert seen["body"]["model"] == media.IMAGE_MODEL
-    assert seen["body"]["response_format"] == {"type": "image", "mime_type": "image/png", "aspect_ratio": "1:1", "image_size": "4K"}
+    assert seen["body"]["response_format"] == {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "1:1", "image_size": "4K"}
     item = next(a for a in media.catalog() if a["id"] == "tex-asphalt")
     assert item["status"] == "ready" and item["provenance"] == "AI_GENERATED" and item["url"].startswith("/v1/media/file/")
 
