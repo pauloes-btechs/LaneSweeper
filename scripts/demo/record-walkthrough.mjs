@@ -84,7 +84,7 @@ await page.goto(`${BASE}/console/tickets`);
 await page.locator('table.data tbody tr').first().click();
 await page.getByText('Audit trail').waitFor();
 mark('SEG ticket');
-await caption(5, 'Verified closed, with a full audit trail: who approved what, when, and why.');
+await caption(6, 'Verified closed, with a full audit trail: who approved what, when, and why.');
 await pause(5000);
 mark('END');
 
@@ -93,7 +93,7 @@ const reports = await (await fetch(`${API}/v1/public/run-reports`)).json();
 await page.goto(`${BASE}/r/${reports[0].slug}`);
 await page.getByText('Lane cells verified cleared').waitFor();
 mark('SEG report');
-await caption(6, 'The public sees aggregate results only: no riders, no raw locations, all labelled SIMULATED.');
+await caption(7, 'The public sees aggregate results only: no riders, no raw locations, all labelled SIMULATED.');
 await pause(5000);
 mark('END');
 
