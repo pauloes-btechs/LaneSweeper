@@ -1,67 +1,54 @@
-import { useEffect, useRef } from 'react';
-import * as THREE from 'three';
-// The original LK-01 parametric model from the LaneKeeper site: one source of truth for geometry and dimensions.
-import { buildRobot, DIMS } from '../../../site/src/robot/model.js';
+import { useEffect, useRef, useState } from 'react';
+import { useMedia } from '../lib/media';
+import type { Quality, TwinScene } from './twin/scene';
 
 interface Props { state: string; progress: number; sweeping: boolean; label?: string }
 
-/** Small three.js twin: the LK-01 model on a lane strip, moving with replay progress. Purely visual. */
+/** High-fidelity LK-01 digital twin on a protected bike lane. Purely visual: animates replayed telemetry. */
 export function Twin3D({ state, progress, sweeping, label = 'LK-01 digital twin (simulated)' }: Props) {
   const el = useRef<HTMLDivElement>(null);
-  const robot = useRef<THREE.Object3D | null>(null);
-  const brooms = useRef<THREE.Object3D[]>([]);
-  const beacon = useRef<THREE.PointLight | null>(null);
-  const live = useRef({ progress, sweeping, state });
-  live.current = { progress, sweeping, state };
+  const twin = useRef<TwinScene | null>(null);
+  const [quality, setQuality] = useState<Quality>('hd');
+  const [full, setFull] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const media = useMedia();
+  const u = (id: string) => media.byId(id)?.url ?? undefined;
+  const texKey = ['tex-asphalt', 'tex-bike-lane', 'tex-concrete', 'tex-facade', 'tex-sidewalk'].map((id) => (u(id) ? id : '')).join();
 
   useEffect(() => {
     const host = el.current;
-    if (!host) return;
-    let renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch { host.textContent = '3D view needs WebGL.'; return; }
-    const w = host.clientWidth || 480, h = 260;
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    host.appendChild(renderer.domElement);
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x101820);
-    const cam = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
-    cam.position.set(3.2, 2.2, 3.6);
-    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x20242a, 1.4));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    sun.position.set(4, 6, 3);
-    scene.add(sun);
-    const lane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 30), new THREE.MeshStandardMaterial({ color: 0x2f8f5b, roughness: 0.9 }));
-    lane.rotation.x = -Math.PI / 2;
-    scene.add(lane);
-    for (const x of [-0.85, 0.85]) {
-      const s = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 30), new THREE.MeshStandardMaterial({ color: 0xe9e9e9 }));
-      s.rotation.x = -Math.PI / 2; s.position.set(x, 0.001, 0); scene.add(s);
-    }
-    const r: THREE.Object3D = buildRobot();
-    scene.add(r);
-    robot.current = r;
-    r.traverse((o) => { if (/broom/i.test(o.name)) brooms.current.push(o); });
-    const bl = new THREE.PointLight(0xffa13a, 0, 3);
-    bl.position.set(0, (DIMS as { height: number }).height + 0.15, 0);
-    r.add(bl);
-    beacon.current = bl;
-    let raf = 0;
-    const t0 = performance.now();
-    const tick = () => {
-      const t = (performance.now() - t0) / 1000;
-      const { progress: p, sweeping: sw, state: st } = live.current;
-      r.position.z = -12 + 24 * Math.max(0, Math.min(1, p));
-      cam.position.z = r.position.z + 3.6;
-      cam.lookAt(r.position.x, 0.3, r.position.z);
-      for (const b of brooms.current) b.rotation.y += sw ? 0.25 : 0;
-      if (beacon.current) beacon.current.intensity = st === 'paused_safety' ? 6 * (Math.sin(t * 8) > 0 ? 1 : 0) : sw ? 2 : 0.3;
-      renderer.render(scene, cam);
-      raf = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => { cancelAnimationFrame(raf); renderer.dispose(); host.innerHTML = ''; brooms.current = []; };
-  }, []);
+    if (!host || media.loading) return;
+    let disposed = false;
+    void import('./twin/scene').then(({ TwinScene }) => {
+      if (disposed) return;
+      try {
+        twin.current = new TwinScene(host, { asphalt: u('tex-asphalt'), lane: u('tex-bike-lane'), concrete: u('tex-concrete'),
+          facade: u('tex-facade'), sidewalk: u('tex-sidewalk') }, quality);
+      } catch { setErr('3D view needs WebGL 2.'); }
+    });
+    const ro = new ResizeObserver(() => twin.current?.resize());
+    ro.observe(host);
+    return () => { disposed = true; ro.disconnect(); twin.current?.dispose(); twin.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texKey, media.loading]);
 
-  return <div ref={el} role="img" aria-label={`${label}: ${state}`} style={{ width: '100%', height: 260, borderRadius: 8, overflow: 'hidden' }} />;
+  useEffect(() => { twin.current?.setQuality(quality); }, [quality]);
+  useEffect(() => { if (twin.current) twin.current.frame = { progress, sweeping, state }; });
+
+  const aiTex = texKey.split(',').filter(Boolean).length;
+  return (
+    <div style={full ? { position: 'fixed', inset: 0, zIndex: 50, background: '#000' } : { position: 'relative' }}>
+      <div ref={el} role="img" aria-label={`${label}: ${state}`}
+        style={{ width: '100%', height: full ? '100vh' : 420, borderRadius: full ? 0 : 8, overflow: 'hidden', background: '#11161c' }} />
+      {err && <div className="small muted" style={{ position: 'absolute', top: 12, left: 12 }}>{err}</div>}
+      <div className="row small" style={{ position: 'absolute', top: 8, right: 8, gap: 6 }}>
+        <button className="btn small" onClick={() => setQuality(quality === 'hd' ? 'ultra' : 'hd')}>{quality === 'hd' ? 'HD' : 'Ultra (4K)'}</button>
+        <button className="btn small" onClick={() => twin.current?.recenter()}>Follow</button>
+        <button className="btn small" onClick={() => setFull(!full)}>{full ? 'Exit' : 'Full screen'}</button>
+      </div>
+      <div className="small" style={{ position: 'absolute', left: 10, bottom: 8, color: '#e8eef5', textShadow: '0 1px 2px #000' }}>
+        SIMULATED · {label} · drag to orbit · {aiTex ? `${aiTex}/5 AI textures` : 'procedural textures'}
+      </div>
+    </div>
+  );
 }
