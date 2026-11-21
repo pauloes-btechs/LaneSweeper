@@ -112,6 +112,9 @@ def dispatch_simulated_mission(principal: Principal, proposal_id: str, approval_
             audit(cur, actor=principal.user_id or "anonymous", action=ACTION, outcome="denied", reason=d.reason,
                   target=proposal_id, trace_id=trace_id, detail={"requested_jurisdiction": jid})
         raise PolicyDenied(d.reason)
+    prior = db.one("select status, result, approval_id::text from tool_invocations where idempotency_key=%s", (idempotency_key,))
+    if prior and prior["status"] == "succeeded" and prior["approval_id"] == approval_id:
+        return {**prior["result"], "replayed": True}   # retry of a completed call: same result, no new effect
     a = approvals.revalidate(approval_id, expected_hash=h, jurisdiction_id=jid, action=ACTION)
     with db.tx() as cur:
         cur.execute("""insert into tool_invocations (run_id, jurisdiction_id, tool, side_effect, idempotency_key, principal_id,
