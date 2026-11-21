@@ -7,7 +7,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 300,
-      "includeFiles": "{services/orchestrator/lanekeeper/**,fixtures/images/**}",
+      "includeFiles": "{services/orchestrator/lanekeeper/**,fixtures/images/**,demo-media/reel/**}",
       "excludeFiles": "{**/__pycache__/**,**/tests/**}"
     }
   },

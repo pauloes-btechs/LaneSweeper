@@ -1,0 +1,96 @@
+{
+  "segments": [
+    {
+      "type": "file",
+      "name": "00-title.mp4"
+    },
+    {
+      "type": "media",
+      "asset": "pov-dawn-glass",
+      "start": 0.0,
+      "dur": 9.5,
+      "overlays": [
+        {
+          "png": "cap-glasses.png",
+          "from": 0
+        },
+        {
+          "png": "hud-warn.png",
+          "from": 4.2
+        }
+      ]
+    },
+    {
+      "type": "media",
+      "asset": "pov-wet-reflections",
+      "start": 1.0,
+      "dur": 4.5,
+      "optional": true,
+      "overlays": [
+        {
+          "png": "cap-confounder.png",
+          "from": 0
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "rec-drafts.mp4"
+    },
+    {
+      "type": "file",
+      "name": "rec-approval.mp4"
+    },
+    {
+      "type": "file",
+      "name": "twin.mp4"
+    },
+    {
+      "type": "still",
+      "asset": "evidence-glass-before",
+      "dur": 3.5,
+      "overlays": [
+        {
+          "png": "cap-before.png",
+          "from": 0
+        }
+      ]
+    },
+    {
+      "type": "still",
+      "asset": "evidence-glass-after",
+      "dur": 3.5,
+      "overlays": [
+        {
+          "png": "cap-after.png",
+          "from": 0
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "rec-ticket.mp4"
+    },
+    {
+      "type": "file",
+      "name": "rec-report.mp4"
+    },
+    {
+      "type": "media",
+      "asset": "pov-day-clear",
+      "start": 1.0,
+      "dur": 5,
+      "optional": true,
+      "overlays": [
+        {
+          "png": "cap-clear.png",
+          "from": 0
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "99-end.mp4"
+    }
+  ]
+}
