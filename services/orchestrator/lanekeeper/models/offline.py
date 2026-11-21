@@ -13,8 +13,17 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from .types import (ChoiceAnswer, DecisionResult, EmbeddingResult, NoulAnswer, Provenance, ScoreAnswer,
-                    TextResult, VisionPoint, VisionResult)
+from .types import (
+    ChoiceAnswer,
+    DecisionResult,
+    EmbeddingResult,
+    NoulAnswer,
+    Provenance,
+    ScoreAnswer,
+    TextResult,
+    VisionPoint,
+    VisionResult,
+)
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "vision.json"
 HASH_MODEL = "offline-hash-768"

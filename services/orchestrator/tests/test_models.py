@@ -188,7 +188,7 @@ def test_hash_embedder_is_deterministic_normalised_and_similarity_aware():
     a, b, c = (offline.hash_embed(t) for t in ("broken glass 1st ave", "broken glass on 1st ave", "pothole in lane"))
     assert a == offline.hash_embed("broken glass 1st ave") and len(a) == 768
     assert abs(sum(x * x for x in a) - 1) < 1e-9
-    dot = lambda u, v: sum(x * y for x, y in zip(u, v))  # noqa: E731
+    dot = lambda u, v: sum(x * y for x, y in zip(u, v, strict=True))  # noqa: E731
     assert dot(a, b) > dot(a, c)
 
 

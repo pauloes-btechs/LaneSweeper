@@ -15,8 +15,17 @@ from .. import db
 from ..config import get_settings
 from . import budget, offline
 from .google import GoogleClient, Image, ModelError
-from .types import (ChoiceAnswer, DecisionResult, EmbeddingResult, NoulAnswer, Provenance, ScoreAnswer, TextResult,
-                    VisionPoint, VisionResult)
+from .types import (
+    ChoiceAnswer,
+    DecisionResult,
+    EmbeddingResult,
+    NoulAnswer,
+    Provenance,
+    ScoreAnswer,
+    TextResult,
+    VisionPoint,
+    VisionResult,
+)
 
 ROUTES_FILE = Path(__file__).with_name("routes.yaml")
 # Fields that would amount to motion/actuation commands. Robotics ER output is parsed for image-space
@@ -64,7 +73,7 @@ class ModelRouter:
                       values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) returning id""",
                    (route, model, api, mode, purpose[:120], provenance[:60], latency_ms, input_tokens, outcome,
                     error_class, jurisdiction_id, run_id, trace_id))
-        except Exception:   # logging must never break the workflow
+        except Exception:  # noqa: S110 - logging must never break the workflow
             pass
 
     def _live(self, route: str, fn, *, ctx: dict) -> tuple[Any, Provenance] | tuple[None, str]:
