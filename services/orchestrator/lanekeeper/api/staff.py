@@ -175,6 +175,9 @@ def mission(mission_id: str, p: Principal = Depends(principal)):
     if not m or m["jid"] not in p.jurisdictions():
         raise HTTPException(404, "not found")
     need(p, m["jid"], "fleet.view")
+    run = db.one("""select r.thread_id from approval_requests a join agent_runs r on r.id = a.run_id
+                     where a.id = %s""", (m["approval_id"],))
+    m["thread_id"] = run["thread_id"] if run else None
     m["stops"] = db.all_rows("select seq, cell_id, planned_eta_s, status from mission_stops where mission_id=%s order by seq", (mission_id,))
     m["events"] = db.all_rows("select event_id, sim_time_s, kind, actor, detail, provenance from mission_events where mission_id=%s order by id", (mission_id,))
     m["faults"] = db.all_rows("select code, severity, safety_action, detail, opened_at, cleared_at, cleared_by from robot_faults where mission_id=%s", (mission_id,))

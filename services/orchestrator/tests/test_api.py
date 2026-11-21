@@ -114,6 +114,7 @@ def test_full_approval_flow_over_http(client):
     assert out["outcome"] == "verified_closed"
     m = client.get(f"/v1/missions/{out['mission_id']}", headers=H("nyc_supervisor")).json()
     assert m["telemetry"] and m["verdicts"][0]["verdict"] == "cleared"
+    assert m["thread_id"] == a["thread_id"]        # console needs it to resolve safety pauses
     viewer_view = client.get(f"/v1/missions/{out['mission_id']}", headers=H("nyc_viewer")).json()
     assert "telemetry" not in viewer_view          # viewers lack telemetry.view
     slug = client.get("/v1/missions", headers=H("nyc_supervisor")).json()[0]["report_slug"]
