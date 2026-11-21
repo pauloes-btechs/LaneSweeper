@@ -38,9 +38,9 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
   }
 
   async function optimise() {
-    for (const a of (m.data?.assets ?? []).filter((x) => x.kind !== 'video' && x.status === 'ready' && !x.web_bytes)) {
+    for (const a of (m.data?.assets ?? []).filter((x) => x.status === 'ready' && !x.web_bytes)) {
       setBusy(a.id);
-      try { await api.post(`/v1/admin/media/${a.id}/poll`, { jurisdiction }); note(`${a.title}: 2K web version ready`); }
+      try { await api.post(`/v1/admin/media/${a.id}/poll`, { jurisdiction }); note(`${a.title}: web version ready`); }
       catch (e) { note(`${a.title}: ${(e as Error).message}`); }
     }
     setBusy(null); m.reload();
@@ -63,7 +63,7 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
         <button className="btn primary" disabled={!!busy || !todo.length} onClick={() => void all(['image', 'texture', 'video'])}>Generate everything left ({todo.length})</button>
         <button className="btn" disabled={!!busy} onClick={() => void all(['image', 'texture'])}>Images + textures only</button>
         <button className="btn" disabled={!!busy} onClick={() => void all(['video'])}>Videos only</button>
-        <button className="btn" disabled={!!busy} onClick={() => void optimise()}>Optimise stills for web</button>
+        <button className="btn" disabled={!!busy} onClick={() => void optimise()}>Make web versions (2K stills, 1080p clips)</button>
       </div>
       <table className="data small"><thead><tr><th>Asset</th><th>Kind</th><th>Truth</th><th>Status</th><th>Size</th><th /></tr></thead><tbody>
         {m.data.assets.map((a) => (

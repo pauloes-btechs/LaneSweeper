@@ -239,11 +239,26 @@ def web_variant(data: bytes, max_px: int = 2048) -> bytes:
     return buf.getvalue()
 
 
+def video_web_variant(data: bytes, height: int = 1080) -> bytes:
+    """1080p H.264 for streaming in the console and for the demo reel; the 4K master stays for download."""
+    import imageio_ffmpeg
+    with tempfile.TemporaryDirectory() as d:
+        src, dst = Path(d) / "in.mp4", Path(d) / "out.mp4"
+        src.write_bytes(data)
+        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-i", str(src),  # noqa: S603
+                        "-vf", f"scale=-2:{height}:flags=lanczos", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", str(dst)], check=True, timeout=200)
+        return dst.read_bytes()
+
+
 def ensure_web(a: Asset, rel: str, data: bytes | None = None) -> None:
     store = MediaStore()
-    web = web_variant(data if data is not None else store.get(rel))
-    web_rel = rel.rsplit(".", 1)[0] + "-2k.webp"
-    store.put(web_rel, web, "image/webp")
+    src = data if data is not None else store.get(rel)
+    if a.kind == "video":
+        web, web_rel, mime = video_web_variant(src), rel.rsplit(".", 1)[0] + "-1080p.mp4", "video/mp4"
+    else:
+        web, web_rel, mime = web_variant(src), rel.rsplit(".", 1)[0] + "-2k.webp", "image/webp"
+    store.put(web_rel, web, mime)
     db.one("update media_assets set web_path=%s, web_bytes=%s, updated_at=now() where id=%s returning 1", (web_rel, len(web), a.id))
 
 
@@ -258,7 +273,7 @@ def _save(a: Asset, data: bytes, mime: str, model: str, resolution: str) -> dict
     MediaStore().put(rel, data, mime)
     _upsert(a, status="ready", model=model, resolution=resolution, prompt_hash=prompt_hash(a), storage_path=rel,
             mime_type=mime, bytes=len(data), interaction_id=None, error=None, generated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ"))
-    if a.kind != "video":
+    if a.kind != "video":   # videos: the 4K re-encode already used most of this request; poll derives 1080p next
         try:
             ensure_web(a, rel, data)
         except Exception as e:   # noqa: BLE001  (the 4K original is saved; the light variant can be backfilled by poll)
@@ -315,7 +330,7 @@ def poll(asset_id: str, *, client: GoogleClient | None = None) -> dict:
     r = _row(asset_id) if a else None
     if not a or not r:
         raise MediaError("unknown asset")
-    if r["status"] == "ready" and a.kind != "video" and not r.get("web_path") and r.get("storage_path"):
+    if r["status"] == "ready" and not r.get("web_path") and r.get("storage_path"):
         ensure_web(a, r["storage_path"])   # backfill the light variant without regenerating
         return {"id": a.id, "status": "ready", "web": True}
     if r["status"] != "generating" or not r["interaction_id"]:

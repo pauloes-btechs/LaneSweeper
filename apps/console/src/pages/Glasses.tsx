@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AgentDrafts } from '../components/AgentDrafts';
 import { SimBanner } from '../components/Layout';
+import { useMedia } from '../lib/media';
 import { api, session } from '../lib/api';
 import { DRAFTS_KEY, lsKV } from '../lib/storage';
 
@@ -28,25 +29,44 @@ function useImages(ids: string[]) {
   return imgs;
 }
 
-// Optional: a locally produced POV clip (see demo-media/README.md). Absent by default; synthetic frames are used then.
-const CLIP_URL = '/media/shot2-glasses-pov.mp4';
-function useOptionalClip() {
+// Footage sources: labelled synthetic fixtures (default), AI-generated POV clips (ground-truth labelled), or a local clip.
+const LOCAL_CLIP = '/media/shot2-glasses-pov.mp4';
+function useClip(url: string | null) {
   const [clip, setClip] = useState<HTMLVideoElement | null>(null);
   useEffect(() => {
+    setClip(null);
+    if (!url) return;
     const v = document.createElement('video');
     v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto';
+    v.crossOrigin = 'anonymous';           // signed storage links send CORS headers; needed to read pixels
     v.onloadeddata = () => setClip(v);
     v.onerror = () => setClip(null);
-    v.src = CLIP_URL;
-    return () => { v.pause(); v.removeAttribute('src'); };
-  }, []);
+    v.src = url;
+    return () => { v.pause(); v.removeAttribute('src'); v.load(); };
+  }, [url]);
   return clip;
 }
 
 export default function Glasses() {
   const imgs = useImages(RIDE);
-  const clip = useOptionalClip();
-  const [useClip, setUseClip] = useState(false);
+  const media = useMedia();
+  const povClips = (media.data?.assets ?? []).filter((a) => a.use_case === 'glasses_pov' && a.status === 'ready' && (a.web_url || a.url));
+  const [source, setSource] = useState<string>('synthetic');
+  const srcAsset = povClips.find((a) => a.id === source);
+  const clipUrl = source === 'local' ? LOCAL_CLIP : srcAsset ? (srcAsset.web_url ?? srcAsset.url ?? null) : null;
+  const clip = useClip(clipUrl);
+  const useClipMode = source !== 'synthetic' && clip !== null;
+  const truth = srcAsset?.label ?? null;
+  const [tally, setTally] = useState({ frames: 0, flagged: 0 });
+  useEffect(() => setTally({ frames: 0, flagged: 0 }), [source]);
+  const videoHost = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const host = videoHost.current;
+    if (!host || !clip) return;
+    clip.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:fill';
+    host.appendChild(clip);
+    return () => { clip.remove(); };
+  }, [clip]);
   const pov = useRef<HTMLCanvasElement>(null);
   const hudRef = useRef<HTMLCanvasElement>(null);
   const work = useMemo(() => document.createElement('canvas'), []);
@@ -137,19 +157,23 @@ export default function Glasses() {
   }, [running]);
 
   useEffect(() => {
-    const clipMode = useClip && clip !== null;
-    const fid = clipMode ? `local-clip@${clip.currentTime.toFixed(1)}s` : RIDE[step]!;
+    const clipMode = useClipMode;
+    const fid = clipMode ? `${source === 'local' ? 'local-clip' : source}@${clip!.currentTime.toFixed(1)}s` : RIDE[step]!;
     const im: CanvasImageSource | undefined = clipMode ? clip : imgs[RIDE[step]!];
     const c = pov.current;
     if (!im || !c) return;
-    const ctx = c.getContext('2d')!;
-    const zoom = 1 + (running ? (Date.now() % 700) / 7000 : 0);
-    ctx.drawImage(im, (640 - 640 * zoom) / 2, (480 - 480 * zoom) / 2, 640 * zoom, 480 * zoom);
-    work.width = 640; work.height = 480;
+    const W = 640, H = clipMode ? 360 : 480;
+    if (!clipMode) {
+      const ctx = c.getContext('2d')!;
+      const zoom = 1 + (running ? (Date.now() % 700) / 7000 : 0);
+      ctx.drawImage(im, (640 - 640 * zoom) / 2, (480 - 480 * zoom) / 2, 640 * zoom, 480 * zoom);
+    }
+    work.width = W; work.height = H;
     const w = work.getContext('2d', { willReadFrequently: true })!;
-    w.drawImage(im, 0, 0, 640, 480);
-    const data = w.getImageData(0, 0, 640, 480);
-    const frame: Frame = { width: 640, height: 480, data: data.data, capturedAt: Date.now(), source: fid };
+    w.drawImage(im, 0, 0, W, H);
+    let data: ImageData;
+    try { data = w.getImageData(0, 0, W, H); } catch { return; }   // cross-origin frame without CORS: skip
+    const frame: Frame = { width: W, height: H, data: data.data, capturedAt: Date.now(), source: fid };
     const d = detect(frame);
     const db = deb.push(d.score);
     const speed = kmh / 3.6;
@@ -165,16 +189,18 @@ export default function Glasses() {
     }
     if (cap) bump();
     setLast(d);
+    if (clipMode) setTally((t) => ({ frames: t.frames + 1, flagged: t.flagged + (d.label === 'possible_glass' ? 1 : 0) }));
     setLog((l) => [{ t: new Date().toLocaleTimeString(), frame: fid, d, stable: db.stable, alert: decision.alert?.text ?? null }, ...l].slice(0, 40));
     // HUD layer: black = see-through on waveguide glasses; one glyph, one line
     const h = hudRef.current?.getContext('2d');
     if (h) {
-      h.clearRect(0, 0, 640, 480);
+      if (hudRef.current!.height !== H) hudRef.current!.height = H;
+      h.clearRect(0, 0, W, H);
       if (d.box && d.label === 'possible_glass') { h.strokeStyle = '#ffd400'; h.lineWidth = 3; h.strokeRect(d.box.x, d.box.y, d.box.w, d.box.h); }
     }
-  }, [step, imgs, useClip]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, imgs, useClipMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (!clip) return; if (useClip && running) void clip.play(); else clip.pause(); }, [clip, useClip, running]);
+  useEffect(() => { if (!clip) return; if (useClipMode && running) void clip.play(); else clip.pause(); }, [clip, useClipMode, running]);
 
   /** Simulated hardware button on the glasses: approves the newest draft, hands-free (allowed while riding). */
   async function glassesButton() {
@@ -201,11 +227,12 @@ export default function Glasses() {
           pixels (no cloud), so the warning works offline. Distance to the hazard is never claimed: there's no calibrated depth or IMU. The M6 live camera stream is documented, but its phone-side receiver isn’t in the SDK kit, so it can’t be used yet (see the SDK audit).</div>
         <div className="grid g-side">
           <div className="card stack">
-            <div style={{ position: 'relative', width: '100%', maxWidth: 640, aspectRatio: '4 / 3', background: '#000', borderRadius: 10, overflow: 'hidden' }}>
-              <canvas ref={pov} width={640} height={480} style={{ width: '100%', height: '100%' }} aria-label="Rider point of view (synthetic frames)" />
-              <canvas ref={hudRef} width={640} height={480} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} aria-hidden="true" />
-              <div style={{ position: 'absolute', top: 30, left: 12, font: '600 12px var(--mono)', color: '#ffd400', letterSpacing: '.06em' }}>SIMULATED GLASSES · {kmh} km/h · {online ? 'LINK OK' : 'OFFLINE'}</div>
-              {hudText && <div role="alert" style={{ position: 'absolute', left: '50%', bottom: 26, transform: 'translateX(-50%)', background: 'rgba(0,0,0,.78)', color: '#ffd400',
+            <div ref={videoHost} style={{ position: 'relative', width: '100%', maxWidth: useClipMode ? 960 : 640, aspectRatio: useClipMode ? '16 / 9' : '4 / 3', background: '#000', borderRadius: 10, overflow: 'hidden' }}>
+              <canvas ref={pov} width={640} height={480} style={{ width: '100%', height: '100%', display: useClipMode ? 'none' : 'block' }} aria-label="Rider point of view (synthetic frames)" />
+              <canvas ref={hudRef} width={640} height={480} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }} aria-hidden="true" />
+              {useClipMode && source !== 'local' && <div style={{ position: 'absolute', top: 8, right: 10, zIndex: 3, font: '600 11px var(--mono)', color: '#fff', background: 'rgba(0,0,0,.55)', padding: '2px 6px', borderRadius: 4 }}>AI-GENERATED · SIMULATED · fictional street</div>}
+              <div style={{ position: 'absolute', zIndex: 3, top: 30, left: 12, font: '600 12px var(--mono)', color: '#ffd400', letterSpacing: '.06em' }}>SIMULATED GLASSES · {kmh} km/h · {online ? 'LINK OK' : 'OFFLINE'}</div>
+              {hudText && <div role="alert" style={{ position: 'absolute', zIndex: 3, left: '50%', bottom: 26, transform: 'translateX(-50%)', background: 'rgba(0,0,0,.78)', color: '#ffd400',
                 font: '600 20px "IBM Plex Sans"', padding: '8px 16px', borderRadius: 8, border: '2px solid #ffd400' }}>⚠ {hudText}</div>}
             </div>
             <div className="row">
@@ -214,7 +241,13 @@ export default function Glasses() {
               <label className="field small">Speed<input type="range" min={0} max={30} value={kmh} onChange={(e) => setKmh(Number(e.target.value))} aria-label="Speed km/h" /></label>
               <label className="row small"><input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />phone link online</label>
               <label className="row small"><input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />spoken warning</label>
-              {clip && <label className="row small"><input type="checkbox" checked={useClip} onChange={(e) => setUseClip(e.target.checked)} />use local clip</label>}
+              <label className="field small">Footage
+                <select aria-label="Footage source" value={source} onChange={(e) => setSource(e.target.value)}>
+                  <option value="synthetic">Synthetic frames (labelled fixtures)</option>
+                  {povClips.map((a) => <option key={a.id} value={a.id}>AI 4K: {a.title}</option>)}
+                  <option value="local">Local clip (/media)</option>
+                </select></label>
+              {source !== 'synthetic' && !clip && <span className="small muted">loading footage…</span>}
             </div>
             <div className="row">
               <button onClick={() => void glassesButton()} title="One press on the glasses approves the newest draft; no reading needed">Glasses button: approve latest draft</button>
@@ -234,6 +267,8 @@ export default function Glasses() {
                 <tr><td>Label</td><td><strong>{last.label}</strong> (score {last.score}, a heuristic, not a probability)</td></tr>
                 <tr><td>Glints / streaks / blobs</td><td>{last.specks} / {last.streaks} / {last.blobs}</td></tr>
                 <tr><td>Compute</td><td>{last.ms} ms in this browser · {last.model}</td></tr>
+                {truth && <tr><td>Ground truth</td><td><strong>{truth}</strong> · flagged {tally.flagged}/{tally.frames} frames
+                  {tally.frames > 5 && <> ({truth === 'glass' ? 'detection' : 'false-alarm'} rate {Math.round((100 * tally.flagged) / tally.frames)}%)</>}</td></tr>}
               </tbody></table> : <p className="muted small">Start the ride.</p>}
               <p className="small muted">Warning rule: ≥3 consecutive frames ≥ 0.55 → “{CAUTION_TEXT}”, 8 s cooldown. Uncertain frames → no alert while moving. There is never a “lane clear” message.</p>
             </div>
