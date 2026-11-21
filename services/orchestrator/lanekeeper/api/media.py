@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from .. import media
+from .. import media, reel
 from ..auth import Principal
 from ..policy.engine import check
 from .common import jurisdiction_for, principal, staff
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1")
 @router.get("/media")
 def list_media(p: Principal = Depends(principal)):
     staff(p)   # any signed-in user (rider or staff)
-    return {"assets": media.catalog(), "provenance": "AI_GENERATED · SIMULATED",
+    return {"assets": media.catalog(), "provenance": "AI_GENERATED · SIMULATED", "reel_url": reel.public_url(),
             "models": {"video": media.VIDEO_MODEL, "image": media.IMAGE_MODEL}}
 
 
@@ -53,5 +53,15 @@ def poll(asset_id: str, body: GenerateBody, p: Principal = Depends(principal)):
     _admin(p, body.jurisdiction)
     try:
         return media.poll(asset_id)
+    except media.MediaError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@router.post("/admin/media/reel/build")
+def build_reel(body: GenerateBody, p: Principal = Depends(principal)):
+    """Assemble the public demo reel from generated media + the release's pre-rendered parts. No model calls."""
+    _admin(p, body.jurisdiction)
+    try:
+        return reel.build()
     except media.MediaError as e:
         raise HTTPException(409, str(e)) from e
