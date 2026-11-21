@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lanekeeper · Night sweeping for protected bike lanes</title>
+<meta name="description" content="Lanekeeper is a lane-sized robot that finds broken glass in protected bike lanes with Gemini Robotics-ER and sweeps it before the morning commute. Request a demo for your city.">
+<meta name="theme-color" content="#080c15">
+<meta property="og:title" content="Lanekeeper · Night sweeping for protected bike lanes">
+<meta property="og:description" content="A lane-sized robot that finds and sweeps broken glass between 4 and 6 a.m. See what it would do on your city’s protected lanes.">
+<meta property="og:image" content="img/lanekeeper-render.jpg">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23080c15'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='%233d9b6a'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top wrap">
+  <a class="brand" href="./" aria-label="Lanekeeper home"><i aria-hidden="true"></i>LANEKEEPER</a>
+  <nav aria-label="Sections">
+    <a href="#robot">Robot</a>
+    <a href="#how">How it works</a>
+    <a href="#city">Your city</a>
+    <a class="btn small" href="#demo">Request a demo</a>
+  </nav>
+</header>
+
+<main id="main">
+  <!-- 1. HERO -->
+  <section class="hero wrap">
+    <div class="hero-copy">
+      <p class="eyebrow">Concept · LK-01 · Night window 04:00–06:00</p>
+      <h1>Glass-free bike lanes before the first commute.</h1>
+      <p class="lede">Lanekeeper is a robot sized to fit inside a protected bike lane. It finds broken glass with Google DeepMind’s Gemini Robotics-ER, sweeps it, and logs every cleared spot on a map your city and its riders can see.</p>
+      <div class="cta-row">
+        <a class="btn" href="#demo">Request a demo</a>
+        <a class="link" href="#city">See it on your city’s lanes →</a>
+      </div>
+      <dl class="facts">
+        <div><dt>Footprint</dt><dd>1300 × 800 × 550 mm</dd></div>
+        <div><dt>Sweep path</dt><dd>900 mm</dd></div>
+        <div><dt>Cost per lane-mile</dt><dd>~$18 vs ~$44 staffed*</dd></div>
+      </dl>
+    </div>
+    <div class="stage hero-stage" id="hero-stage" data-viewer="hero">
+      <img class="poster" src="img/lanekeeper-render.jpg" alt="Rendering of the LK-01 robot sweeping a green protected bike lane at dawn" width="1920" height="1080">
+      <span class="stage-hint mono">Drag to turn</span>
+    </div>
+  </section>
+
+  <!-- 2. ROBOT -->
+  <section class="band" id="robot">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">The robot</p>
+        <h2>Small enough for the lane. Low enough to pass.</h2>
+        <p class="lede">At 800 mm wide, LK-01 leaves 580 mm of a 1.5 m lane open for an early rider. Turn it, pull it apart, or tap a number to see what each part does.</p>
+      </div>
+      <div class="inspect">
+        <div class="stage inspect-stage" id="inspect-stage" data-viewer="inspect">
+          <img class="poster" src="img/lanekeeper-render.jpg" alt="Rendering of the LK-01 robot" width="1920" height="1080" loading="lazy">
+          <div class="stage-tools" role="group" aria-label="Model view">
+            <button type="button" class="chip" data-view="assembled" aria-pressed="true">Assembled</button>
+            <button type="button" class="chip" data-view="exploded" aria-pressed="false">Exploded</button>
+            <button type="button" class="chip" data-view="dimensions" aria-pressed="false">Dimensions</button>
+          </div>
+        </div>
+        <ol class="parts" id="parts-list">
+          <li><button type="button" data-hotspot="0"><span>1</span>Stereo camera + strobe</button></li>
+          <li><button type="button" data-hotspot="1"><span>2</span>Gemini vision</button></li>
+          <li><button type="button" data-hotspot="2"><span>3</span>Side brooms</button></li>
+          <li><button type="button" data-hotspot="3"><span>4</span>Sealed glass hopper</button></li>
+          <li><button type="button" data-hotspot="4"><span>5</span>Beacon + GNSS</button></li>
+          <li><button type="button" data-hotspot="5"><span>6</span>Dock contacts</button></li>
+        </ol>
+      </div>
+      <p class="note">Concept model built to the LK-01 design targets. <a href="https://github.com/pauloes-btechs/lanekeeper/blob/main/docs/prototype/lanekeeper-dimensions.jpg">Dimension drawings</a> · <a href="https://github.com/pauloes-btechs/lanekeeper/blob/main/docs/prototype/lanekeeper-specs.jpg">Spec sheet</a></p>
+    </div>
+  </section>
+
+  <!-- 3. HOW IT WORKS -->
+  <section class="band" id="how">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">How it works</p>
+        <h2>From a flash of glass to a cleared spot on the map.</h2>
+      </div>
+      <ol class="steps">
+        <li><span class="n">01</span><h3>Detect on board</h3><p>A cross-polarized strobe makes glass flash. A small detector on the robot drops the brooms in under 50 ms.</p></li>
+        <li class="key"><span class="n">02</span><h3>Verify with Gemini</h3><p>Google DeepMind’s Gemini Robotics-ER 2 confirms each flagged frame, points at every cluster and counts the pieces.</p></li>
+        <li><span class="n">03</span><h3>Plan the pass</h3><p>The robot shifts its line, slows and widens its brooms over the cluster, then yields to any rider.</p></li>
+        <li><span class="n">04</span><h3>Prove it’s clear</h3><p>A rear camera re-checks the spot. A second pass runs if anything is left.</p></li>
+        <li><span class="n">05</span><h3>Log the cleanup</h3><p>The time, lane cell and shard count go to the map and the morning’s public run report.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 4 + 5. YOUR CITY + ESTIMATOR -->
+  <section class="band" id="city">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Your city</p>
+        <h2>See what Lanekeeper would cover on your protected lanes.</h2>
+        <p class="lede">Each map shows the existing protected bike lanes from the city’s own open data. Pick a city to size a fleet and compare its cost with staffed sweeping.</p>
+      </div>
+      <div class="city-tools">
+        <label for="city-select" class="mono">City</label>
+        <select id="city-select" aria-describedby="city-source"></select>
+        <span class="city-miles mono" id="city-miles" aria-live="polite"></span>
+      </div>
+      <div class="city-grid">
+        <div class="map-wrap">
+          <div id="map" class="map" role="region" aria-label="Map of protected bike lanes"></div>
+          <p class="map-fallback" id="map-fallback" hidden>The map needs WebGL. The lane-mile figures and the estimate still work.</p>
+        </div>
+        <div class="estimator" id="estimator">
+          <div class="est-controls">
+            <fieldset>
+              <legend class="mono">Passes per week</legend>
+              <div class="seg" role="radiogroup" aria-label="Passes per week">
+                <label><input type="radio" name="passes" value="1" checked><span>1×</span></label>
+                <label><input type="radio" name="passes" value="3"><span>3×</span></label>
+                <label><input type="radio" name="passes" value="7"><span>Nightly</span></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend class="mono">Scenario</legend>
+              <div class="seg" role="radiogroup" aria-label="Cost scenario">
+                <label><input type="radio" name="scenario" value="low"><span>Low</span></label>
+                <label><input type="radio" name="scenario" value="base" checked><span>Base</span></label>
+                <label><input type="radio" name="scenario" value="high"><span>High</span></label>
+              </div>
+            </fieldset>
+          </div>
+          <dl class="est-out">
+            <div class="big"><dt>Robots needed</dt><dd id="est-robots">–</dd></div>
+            <div><dt>Lane-miles swept per night</dt><dd id="est-nightly">–</dd></div>
+            <div><dt>Yearly cost, Lanekeeper</dt><dd id="est-robot-cost">–</dd></div>
+            <div><dt>Yearly cost, staffed mini-sweepers</dt><dd id="est-staffed-cost">–</dd><span class="sub" id="est-sweepers"></span></div>
+            <div class="save"><dt>Estimated difference</dt><dd id="est-saving">–</dd></div>
+          </dl>
+          <p class="note">Estimates only. Both fleets are sized to sweep the full protected network the chosen number of times a week. Costs come from the <a href="https://github.com/pauloes-btechs/lanekeeper/blob/main/analysis/cost_model.py">Lanekeeper cost model</a>: DSNY’s 2022 mini-sweeper capital cost, an operator at a loaded city wage, and a robot build cost that is our estimate. <a href="#assumptions">Assumptions</a></p>
+        </div>
+      </div>
+      <p class="note source" id="city-source"></p>
+    </div>
+  </section>
+
+  <!-- 6. RIDERS -->
+  <section class="band" id="riders">
+    <div class="wrap riders">
+      <div>
+        <p class="eyebrow">Riders</p>
+        <h2>Riders point the robots to the glass.</h2>
+        <p class="lede">Planned for pilots: a rider snaps a photo and texts it to <b class="mono">GLASS (45277)</b> or sends it on WhatsApp. Gemini checks the photo, the spot joins the next night’s queue, and the rider gets a reply. Not live yet.</p>
+      </div>
+      <div>
+        <p class="eyebrow">Public run reports</p>
+        <h2>Every run ends with a report anyone can scan.</h2>
+        <p class="lede">After each night’s sweep, a report shows when the robot ran, how many glass spots it cleared and where. <a href="presentation/">See the full presentation</a> or <a href="run-report/">a sample run report</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. DEMO -->
+  <section class="band" id="demo">
+    <div class="wrap demo">
+      <div>
+        <p class="eyebrow">Request a demo</p>
+        <h2>Bring Lanekeeper to your lanes.</h2>
+        <p class="lede">For transportation, sanitation and street-operations teams. We’ll walk through the robot, map your protected network and plan a pilot corridor with you.</p>
+        <ul class="ticks">
+          <li>A 30-minute walkthrough of the robot and the data platform</li>
+          <li>A coverage and cost estimate for your protected lanes</li>
+          <li>A pilot plan: corridor, schedule and success measures</li>
+        </ul>
+      </div>
+      <form id="demo-form" novalidate>
+        <div class="field"><label for="f-name">Name</label><input id="f-name" name="name" autocomplete="name" required minlength="2" maxlength="120"></div>
+        <div class="field"><label for="f-email">Work email</label><input id="f-email" name="email" type="email" autocomplete="email" required maxlength="254"></div>
+        <div class="field half"><label for="f-city">City</label><input id="f-city" name="city" list="city-options" autocomplete="address-level2" required minlength="2" maxlength="80"><datalist id="city-options"></datalist></div>
+        <div class="field half"><label for="f-miles">Protected lane-miles <span>(optional)</span></label><input id="f-miles" name="laneMiles" inputmode="decimal" maxlength="10"></div>
+        <div class="field"><label for="f-org">Agency or organization</label><input id="f-org" name="organization" autocomplete="organization" required minlength="2" maxlength="160"></div>
+        <div class="field"><label for="f-role">Role <span>(optional)</span></label><input id="f-role" name="role" autocomplete="organization-title" maxlength="120"></div>
+        <div class="field"><label for="f-msg">Anything we should know? <span>(optional)</span></label><textarea id="f-msg" name="message" rows="4" maxlength="2000"></textarea></div>
+        <div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="website" tabindex="-1" autocomplete="off"></div>
+        <button class="btn" type="submit">Request a demo</button>
+        <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="band" id="assumptions">
+    <div class="wrap">
+      <p class="eyebrow">Assumptions</p>
+      <div class="tablewrap">
+        <table class="assume">
+          <thead><tr><th>Input</th><th>Staffed mini-sweeper</th><th>Lanekeeper robot (base)</th></tr></thead>
+          <tbody>
+            <tr><td>Machine cost</td><td>$148,889 (DSNY: $6.7M for 45 units, 2022)</td><td>$60,000, our estimate</td></tr>
+            <tr><td>Service life</td><td>7 years</td><td>5 years</td></tr>
+            <tr><td>People</td><td>One operator per unit, $130k loaded</td><td>One remote supervisor per 10 robots</td></tr>
+            <tr><td>Work per year</td><td>250 shifts × 15 lane-miles</td><td>330 nights × 10 km in the 4–6 a.m. window</td></tr>
+            <tr><td>Per lane-mile</td><td id="as-staffed">$44.34</td><td id="as-robot">$18.28</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">* Base case. Low and high scenarios range from $11–$45 per lane-mile for the robot and $29–$79 for staffed sweepers. Lane-miles are centreline miles of existing protected lanes in each city’s open data, so two-way lanes count once.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><b>Lanekeeper is a concept.</b> No robots are deployed yet, and no city has signed on. Figures are design targets and estimates unless marked as measured.</p>
+    <p>Gemini and Gemini Robotics-ER are Google products, named here to describe the vision model Lanekeeper is built on. <a href="https://ai.google.dev/gemini-api/docs/robotics-overview">Gemini Robotics-ER docs</a></p>
+    <p class="mono"><a href="https://github.com/pauloes-btechs/lanekeeper">GitHub</a> · <a href="presentation/">Presentation</a> · <a href="run-report/">Sample run report</a> · <a href="#city">Data sources</a></p>
+  </div>
+</footer>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
