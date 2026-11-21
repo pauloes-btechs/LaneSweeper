@@ -83,6 +83,7 @@ class LaneKeeperState(TypedDict, total=False):
     simulation_mode: bool
     next_action: str
     outcome: str
+    scenario: str | None          # digital-twin scenario chosen server-side by the demo controller
 
 
 class InboundLocation(BaseModel):
