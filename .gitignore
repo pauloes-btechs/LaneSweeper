@@ -1,0 +1,34 @@
+# dependencies and builds
+node_modules/
+dist/
+.vite/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# secrets: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+supabase/.temp/
+supabase/.branches/
+
+# Confidential vendor material (Microlumin kit is NDA / do-not-publish)
+vendor-private/
+Microlumin_Ship/
+*.aar
+*.apk
+*.framework/
+
+# local runtime output
+.lk/
+demo-output/
+*.log
+.DS_Store
