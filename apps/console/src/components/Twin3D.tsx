@@ -12,8 +12,8 @@ export function Twin3D({ state, progress, sweeping, label = 'LK-01 digital twin 
   const [full, setFull] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const media = useMedia();
-  const u = (id: string) => media.byId(id)?.url ?? undefined;
-  const texKey = ['tex-asphalt', 'tex-bike-lane', 'tex-concrete', 'tex-facade', 'tex-sidewalk'].map((id) => (u(id) ? id : '')).join();
+  const u = (id: string) => { const x = media.byId(id); return (quality === 'ultra' ? x?.url : x?.web_url ?? x?.url) ?? undefined; };
+  const texKey = ['tex-asphalt', 'tex-bike-lane', 'tex-concrete', 'tex-facade', 'tex-sidewalk'].map((id) => (u(id) ? id : '')).join() + quality;
 
   useEffect(() => {
     const host = el.current;
@@ -35,7 +35,7 @@ export function Twin3D({ state, progress, sweeping, label = 'LK-01 digital twin 
   useEffect(() => { twin.current?.setQuality(quality); }, [quality]);
   useEffect(() => { if (twin.current) twin.current.frame = { progress, sweeping, state }; });
 
-  const aiTex = texKey.split(',').filter(Boolean).length;
+  const aiTex = ['tex-asphalt', 'tex-bike-lane', 'tex-concrete', 'tex-facade', 'tex-sidewalk'].filter((id) => u(id)).length;
   return (
     <div style={full ? { position: 'fixed', inset: 0, zIndex: 50, background: '#000' } : { position: 'relative' }}>
       <div ref={el} role="img" aria-label={`${label}: ${state}`}

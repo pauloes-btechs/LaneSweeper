@@ -37,6 +37,15 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
     }
   }
 
+  async function optimise() {
+    for (const a of (m.data?.assets ?? []).filter((x) => x.kind !== 'video' && x.status === 'ready' && !x.web_bytes)) {
+      setBusy(a.id);
+      try { await api.post(`/v1/admin/media/${a.id}/poll`, { jurisdiction }); note(`${a.title}: 2K web version ready`); }
+      catch (e) { note(`${a.title}: ${(e as Error).message}`); }
+    }
+    setBusy(null); m.reload();
+  }
+
   if (m.error) return <ErrorState error={m.error} />;
   if (!m.data) return <Loading />;
   const todo = m.data.assets.filter((a) => a.status !== 'ready' || a.stale);
@@ -54,6 +63,7 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
         <button className="btn primary" disabled={!!busy || !todo.length} onClick={() => void all(['image', 'texture', 'video'])}>Generate everything left ({todo.length})</button>
         <button className="btn" disabled={!!busy} onClick={() => void all(['image', 'texture'])}>Images + textures only</button>
         <button className="btn" disabled={!!busy} onClick={() => void all(['video'])}>Videos only</button>
+        <button className="btn" disabled={!!busy} onClick={() => void optimise()}>Optimise stills for web</button>
       </div>
       <table className="data small"><thead><tr><th>Asset</th><th>Kind</th><th>Truth</th><th>Status</th><th>Size</th><th /></tr></thead><tbody>
         {m.data.assets.map((a) => (
@@ -61,7 +71,7 @@ export function MediaPanel({ jurisdiction }: { jurisdiction?: string }) {
             <td>{a.url ? <a href={a.url} target="_blank" rel="noreferrer">{a.title}</a> : a.title}</td>
             <td>{a.kind} · {a.resolution}</td><td className="mono">{a.label ?? '—'}</td>
             <td><Chip v={a.status === 'ready' ? (a.stale ? 'stale' : 'succeeded') : a.status} />{a.error && <span className="small muted"> {a.error.slice(0, 80)}</span>}</td>
-            <td>{a.bytes ? `${(a.bytes / 1048576).toFixed(1)} MB` : '—'}</td>
+            <td>{a.bytes ? `${(a.bytes / 1048576).toFixed(1)} MB` : '—'}{a.web_bytes ? ` · web ${(a.web_bytes / 1048576).toFixed(1)} MB` : ''}</td>
             <td><button className="btn small" disabled={!!busy} onClick={() => void one(a)}>{busy === a.id ? '…' : a.status === 'ready' ? 'Redo' : 'Generate'}</button></td>
           </tr>))}
       </tbody></table>
