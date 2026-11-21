@@ -44,6 +44,8 @@ Models: `gemini-decision-1` (evidence decisions), `gemini-robotics-er-2-preview`
 
 ## Docs
 
+- [AI demo media and the official demo video](docs/MEDIA_PIPELINE.md)
+
 | Start here | Engineering | Safety & security | Product |
 |---|---|---|---|
 | [Demo guide](docs/DEMO_GUIDE.md) | [Architecture](docs/ARCHITECTURE.md) | [Robot safety boundary](docs/ROBOT_SAFETY_BOUNDARY.md) | [Market fit](docs/MARKET_FIT.md) |
