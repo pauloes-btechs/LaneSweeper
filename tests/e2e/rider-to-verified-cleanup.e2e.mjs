@@ -77,6 +77,21 @@ await step('glasses simulator warns locally', async () => {
   await page.getByRole('alert').filter({ hasText: 'Possible debris ahead' }).waitFor({ timeout: 15000 });
 });
 
+await step('supervisor resumes a safety-paused mission from the console', async () => {
+  const tok = (await (await fetch(`${API}/v1/demo/token/supervisor`, { method: 'POST' })).json()).token;
+  const H = { 'content-type': 'application/json', authorization: `Bearer ${tok}` };
+  const run = await (await fetch(`${API}/v1/demo/scenario/G`, { method: 'POST' })).json();   // twin: lost link
+  const appr = (await (await fetch(`${API}/v1/approvals`, { headers: H })).json()).find((a) => a.thread_id === run.thread_id && a.status === 'pending');
+  await fetch(`${API}/v1/approvals/${appr.id}/decide`, { method: 'POST', headers: H, body: JSON.stringify({ approve: true, reason: 'e2e: link-loss drill' }) });
+  const paused = await (await fetch(`${API}/v1/threads/${encodeURIComponent(run.thread_id)}/resume`, { method: 'POST', headers: H, body: JSON.stringify({ kind: 'approval' }) })).json();
+  assert.ok(paused.mission_id, JSON.stringify(paused));
+  await page.goto(`${BASE}/console/missions/${paused.mission_id}`);
+  await page.getByRole('region', { name: 'Safety pause' }).waitFor();
+  await page.getByRole('button', { name: 'Supervisor resume' }).click();
+  await page.getByText(/Resume accepted by the local safety controller/).waitFor({ timeout: 20000 });
+  await page.getByRole('region', { name: 'Safety pause' }).waitFor({ state: 'detached' });
+});
+
 assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join('\n')}`);
 await browser.close();
 console.log('E2E passed');

@@ -114,6 +114,7 @@ def test_full_approval_flow_over_http(client):
     assert out["outcome"] == "verified_closed"
     m = client.get(f"/v1/missions/{out['mission_id']}", headers=H("nyc_supervisor")).json()
     assert m["telemetry"] and m["verdicts"][0]["verdict"] == "cleared"
+    assert m["thread_id"] == a["thread_id"]        # console needs it to resolve safety pauses
     viewer_view = client.get(f"/v1/missions/{out['mission_id']}", headers=H("nyc_viewer")).json()
     assert "telemetry" not in viewer_view          # viewers lack telemetry.view
     slug = client.get("/v1/missions", headers=H("nyc_supervisor")).json()[0]["report_slug"]
@@ -140,3 +141,17 @@ def test_demo_token_endpoint_gives_identity_only(client):
     tok = client.post("/v1/demo/token/viewer").json()["token"]
     r = client.post("/v1/fleet/plan", json={}, headers={"authorization": f"Bearer {tok}"})
     assert r.status_code == 403
+
+
+def test_console_safety_resume_path_over_http(client):
+    run = client.post("/v1/demo/scenario/G").json()       # twin scenario "disconnected"
+    a = next(x for x in client.get("/v1/approvals", headers=H("nyc_supervisor")).json()
+             if x["status"] == "pending" and x["thread_id"] == run["thread_id"])
+    client.post(f"/v1/approvals/{a['id']}/decide", json={"approve": True, "reason": "estimates reviewed"}, headers=H("nyc_supervisor"))
+    paused = client.post(f"/v1/threads/{a['thread_id']}/resume", json={"kind": "approval"}, headers=H("nyc_supervisor")).json()
+    m = client.get(f"/v1/missions/{paused['mission_id']}", headers=H("nyc_supervisor")).json()
+    assert m["status"] == "paused_safety"
+    body = {"kind": "safety", "action": "resume", "link_restored": True, "jam_cleared": False}
+    assert client.post(f"/v1/threads/{m['thread_id']}/resume", json=body, headers=H("nyc_operator")).status_code == 403
+    done = client.post(f"/v1/threads/{m['thread_id']}/resume", json=body, headers=H("nyc_supervisor")).json()
+    assert done["status"] == "done"
