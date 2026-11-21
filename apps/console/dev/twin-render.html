@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Dev-only: deterministic frame-by-frame render of the twin for the demo reel (driven by scripts/demo/render-twin.mjs). -->
+<html><head><meta charset="utf-8"><title>Twin render</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#v{width:100vw;height:100vh}</style></head>
+<body><div id="v"></div>
+<script type="module">
+  import * as THREE from 'three';
+  import { TwinScene } from '/src/components/twin/scene.ts';
+  const q = new URLSearchParams(location.search);
+  const N = Number(q.get('frames') ?? 168), FPS = Number(q.get('fps') ?? 24);
+  const t = new TwinScene(document.getElementById('v'), {}, q.get('q') === 'ultra' ? 'ultra' : 'hd');
+  t.stop();
+  // Slow crane-and-orbit around the sweeping robot: front three-quarter to side.
+  t.shot = (cam, target, robot, time) => {
+    const k = Math.min(1, time / (N / FPS));
+    const a = -0.95 + 1.5 * k, r = 3.4 - 0.6 * k, h = 1.6 - 0.55 * k;
+    cam.position.set(robot.x + Math.sin(a) * r, h, robot.z + Math.cos(a) * r);
+    target.set(robot.x, 0.32, robot.z + 0.25);
+    cam.lookAt(target);
+  };
+  window.__frame = (i) => { t.renderAt(i / FPS, { progress: 0.25 + 0.2 * (i / N), sweeping: true, state: 'sweeping' }); return i; };
+  window.__ready = true;
+</script></body></html>
