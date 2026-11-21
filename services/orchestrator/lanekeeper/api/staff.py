@@ -252,3 +252,18 @@ def run_tool(name: str, body: dict, p: Principal = Depends(principal)):
         raise HTTPException(403, str(e)) from e
     except ValidationError as e:
         raise HTTPException(422, e.errors(include_input=False, include_context=False)) from e
+
+
+@router.get("/graphs/{workflow}")
+def graph_shape(workflow: str, p: Principal = Depends(principal)):
+    """Nodes and edges straight from the compiled LangGraph (not a hand-drawn diagram)."""
+    staff(p)
+    from ..graphs import copilot as cp
+    from ..graphs import glasses as gl
+    from ..graphs import ticket as tk
+    builders = {"ticket": tk.build, "fleet": fleet.build, "glasses": gl.build, "copilot": cp.build}
+    if workflow not in builders:
+        raise HTTPException(404, "unknown workflow")
+    g = builders[workflow]().get_graph()
+    return {"workflow": workflow, "nodes": [n for n in g.nodes if not n.startswith("__")],
+            "edges": [{"source": e.source, "target": e.target, "conditional": e.conditional} for e in g.edges]}
