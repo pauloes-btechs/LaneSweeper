@@ -1,0 +1,17 @@
+{
+  "name": "@lanekeeper/glasses",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Smart-glasses application contract, simulator, on-device candidate detector, warning policy and device link",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}
