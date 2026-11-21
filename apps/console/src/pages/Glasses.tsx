@@ -167,7 +167,7 @@ export default function Glasses() {
       <main className="main" style={{ maxWidth: 1240, margin: '0 auto' }}>
         <div className="row between"><h1>Smart-glasses rider simulator</h1><div className="row small"><Link to="/rider">Rider app</Link><Link to="/console">Console →</Link></div></div>
         <div className="callout warn small" style={{ marginBottom: 12 }}><strong>SIMULATED GLASSES.</strong> Frames are labelled synthetic fixtures. Detection runs here on the
-          pixels (no cloud), so the warning works offline. Distance to the hazard is never claimed: there's no calibrated depth or IMU. The real M6 glasses’ camera stream isn’t available in the SDK kit (see the SDK audit).</div>
+          pixels (no cloud), so the warning works offline. Distance to the hazard is never claimed: there's no calibrated depth or IMU. The M6 live camera stream is documented, but its phone-side receiver isn’t in the SDK kit, so it can’t be used yet (see the SDK audit).</div>
         <div className="grid g-side">
           <div className="card stack">
             <div style={{ position: 'relative', width: '100%', maxWidth: 640, aspectRatio: '4 / 3', background: '#000', borderRadius: 10, overflow: 'hidden' }}>

@@ -49,7 +49,7 @@ No physical glasses were available. Nothing below has been exercised on hardware
 ## Consequences for LaneKeeper
 
 1. **Two-hop architecture.** LaneKeeper never talks to the glasses directly. Data path: glasses app (HUD, alerts) ⇄ Wi-Fi WebSocket or BLE custom channel ⇄ rider's phone (GPS, connectivity, report upload) ⇄ LaneKeeper API. The phone is the trust and network boundary, and holds no Google API keys.
-2. **Local detection can't run on the glasses camera today.** The live stream is missing, and on-glasses camera access is unverified. So the rider demo runs the local candidate detector on the **phone or browser** against prerecorded or uploaded frames, then pushes alerts to the HUD.
+2. **Local detection can't run on the glasses camera today.** The live stream's phone-side receiver is missing from the kit (the glasses-side update packages are included), and on-glasses camera access is unverified. So the rider demo runs the local candidate detector on the **phone or browser** against prerecorded or uploaded frames, then pushes alerts to the HUD.
 3. **Alerts must stay low-distraction.** Short audio ("Possible debris ahead — slow down") plus a single high-contrast HUD glyph on black. No taps are needed while riding.
 4. **The simulator is the MVP.** `SimulatedGlassesAdapter` implements the full contract. The vendor adapter implements only the operations marked `documented_unverified` above and reports everything else as unsupported through `getCapabilities()`.
 
