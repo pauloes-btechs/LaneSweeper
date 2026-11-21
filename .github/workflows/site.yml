@@ -1,0 +1,36 @@
+name: site
+on:
+  pull_request:
+    paths: ["apps/site/**", "analysis/**", ".github/workflows/site.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/site/**", "analysis/**"]
+permissions:
+  contents: read
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/site/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+  cost-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 analysis/cost_model.py
