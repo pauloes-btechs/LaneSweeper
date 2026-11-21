@@ -82,7 +82,7 @@ def submit_report(body: dict, p: Principal = Depends(principal)):
     try:
         rep = InboundReport.model_validate(body)
     except ValidationError as e:
-        raise HTTPException(422, e.errors()) from e
+        raise HTTPException(422, json.loads(e.json(include_input=False))) from e
     if rep.source_kind not in ("rider_app", "rider_guest"):
         raise HTTPException(400, "this endpoint accepts rider reports only")
     r = workflows.submit_report(rep.model_dump(mode="json"), p)
