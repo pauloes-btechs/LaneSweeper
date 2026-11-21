@@ -8,6 +8,10 @@ An agent-orchestrated operating system for bike-lane maintenance. Riders and sma
 
 LaneKeeper OS builds on the original [LaneKeeper](https://github.com/pauloes-btechs/lanekeeper) concept (website, LK-01 model, Supabase schema, Gemini glass check). That work is preserved unchanged under `apps/site/` and `supabase/`.
 
+## Hosted demo
+
+**https://lanekeeper-os-btechs-org.vercel.app** is private to the Btechs-Org Vercel team (Vercel Authentication). It runs the console on Vercel, the orchestrator as a Vercel Python Function, and data on the Supabase `lanekeeper` project (original LaneKeeper tables untouched, plus the LaneKeeper OS schema and a fictional demo tenant). AI runs offline until a Google key is added ([how](docs/OPERATIONS_RUNBOOK.md#hosted-vercel--supabase)).
+
 ## Quick start (no API keys needed)
 
 Requires Python 3.11+, Node 20+, and Postgres 16 with PostGIS and pgvector (or Docker: `make db-docker`).

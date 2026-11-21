@@ -33,8 +33,8 @@ Scenarios A–J make roughly 60 calls in total, far below any cap. Offline, all 
 
 | Service | Free tier | Effect on this project |
 |---|---|---|
-| Supabase Free | 500 MB database per project, 2 active projects, 1 GB file storage, 5 GB egress; projects pause after about a week of inactivity | The existing `lanekeeper` project is currently **paused**. Demo data is well under 50 MB. A paused project keeps its data but needs a manual restore. |
-| Vercel Hobby | Free, but restricted to **non-commercial, personal use** | Fine for a personal portfolio demo. A municipal pilot or anything sold needs Pro or Enterprise. |
+| Supabase Free | 500 MB database per project, 2 active projects, 1 GB file storage, 5 GB egress; projects pause after about a week of inactivity | `lanekeeper` was restored on 2026-11-21 and now hosts the demo (it and DCI-Global-Research-Map are the 2 active projects). Demo data is well under 50 MB. If it pauses again, restore it from the dashboard. |
+| Vercel Hobby | Free, but restricted to **non-commercial, personal use** | Deployed as the owner's personal portfolio demo (owner confirmed 2026-11-21). A municipal pilot or anything sold needs Pro or Enterprise. |
 | OpenFreeMap | Keyless vector tiles | Console basemap; there's an offline plain-grid fallback. |
 | GitHub Actions | Free for public repositories | The 6 workflows run on every PR. |
 
