@@ -1,0 +1,26 @@
+name: console
+on:
+  pull_request:
+    paths: ["apps/console/**", "packages/**", "fixtures/**", "services/orchestrator/lanekeeper/fixtures/**", "package*.json", ".github/workflows/console.yml"]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck --workspaces --if-present
+      - name: Unit tests (glasses package incl. detector evaluation gates; console)
+        run: npm test -w packages/glasses -w apps/console
+      - name: Build console
+        run: npm run build -w apps/console
+      - name: No secrets in the browser bundle
+        run: |
+          ! grep -rEl "AIza[0-9A-Za-z_-]{20,}|service_role|LK_SIGNING_SECRET|sk_live_" apps/console/dist
