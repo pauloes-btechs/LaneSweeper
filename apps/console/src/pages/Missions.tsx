@@ -86,7 +86,7 @@ function DetailBody() {
       <div className="row between">
         <div><Link to="/console/missions" className="small">← Missions</Link>
           <h1 className="row">Mission <span className="mono">{short(d.id)}</span> <Chip v={d.status} /> <Prov /></h1>
-          <div className="muted small">{d.robot_id} · scenario {d.scenario ?? 'nominal'} · operation <span className="mono">{short(d.operation_id)}</span>{d.abort_reason && ` · ${d.abort_reason}`}</div></div>
+          <div className="muted small">{d.robot_id} · scenario {d.scenario ?? 'nominal'} · operation <span className="mono">{short(d.operation_id)}</span>{d.abort_reason && (['aborted', 'failed'].includes(d.status) ? ` · aborted: ${d.abort_reason}` : ` · last safety pause: ${d.abort_reason}`)}</div></div>
         <button className="danger" onClick={() => void stop()} disabled={['completed', 'aborted', 'failed'].includes(d.status)}>Stop / abort mission</button>
       </div>
       {d.status === 'paused_safety' && <div className="callout warn small stack" role="region" aria-label="Safety pause">
