@@ -36,6 +36,19 @@ export class DeviceLink {
     return (await r.json()) as Record<string, unknown>;
   }
 
+  /** Read-only: where an agent draft would land and whether it is already reported. */
+  async previewDraft(q: { lat: number; lng: number; accuracy_m?: number; hazard_claimed?: string }): Promise<Record<string, unknown>> {
+    const body = JSON.stringify(q);
+    const ts = Math.floor(Date.now() / 1000);
+    const sig = await signBody(this.cfg.deviceKey, ts, body);
+    const f = this.cfg.fetchImpl ?? fetch;
+    const r = await f(`${this.cfg.baseUrl}/v1/devices/${this.cfg.deviceId}/drafts/preview`, {
+      method: 'POST', body, headers: { 'content-type': 'application/json', 'x-lk-timestamp': String(ts), 'x-lk-signature': sig },
+    });
+    if (!r.ok) throw new Error(`preview rejected: ${r.status}`);
+    return (await r.json()) as Record<string, unknown>;
+  }
+
   async pollHud(since?: string): Promise<Array<{ id: string; body: { text: string; display: string }; created_at: string }>> {
     const ts = Math.floor(Date.now() / 1000);
     const sig = await signBody(this.cfg.deviceKey, ts, '');

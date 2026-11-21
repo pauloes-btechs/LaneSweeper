@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { RiderReportAgent, SubmitRejected, type DraftPreview } from '@lanekeeper/glasses';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AgentDrafts } from '../components/AgentDrafts';
 import { SimBanner } from '../components/Layout';
 import { LaneMap } from '../components/LaneMap';
 import { Chip, ago } from '../components/ui';
 import { api, session } from '../lib/api';
+import { DRAFTS_KEY, lsKV } from '../lib/storage';
 import { useApi } from '../lib/useApi';
 
 interface Fixture { id: string; description: string; url: string }
@@ -40,6 +43,21 @@ export default function Rider() {
   const [res, setRes] = useState<Result | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // The rider's assistant (drafts made by paired glasses on this device). Approving here submits as the signed-in rider.
+  const consentRef = useRef(consent); consentRef.current = consent;
+  const [draftsVer, setDraftsVer] = useState(0);
+  const agent = useMemo(() => new RiderReportAgent({
+    sourceKind: 'rider_app', kv: lsKV, storageKey: DRAFTS_KEY,
+    prefs: () => ({ shareImage: consentRef.current.share_image, shareLocation: consentRef.current.share_location,
+                    notifyStatus: consentRef.current.notify_status, policyVersion: 'rider-2026.11' }),
+    submit: async (body) => {
+      const r = await api.post<Result>('/v1/reports', body);
+      if (r.status === 'rejected') throw new SubmitRejected(r.errors.join('; ') || 'rejected');
+      return { ticket_number: r.ticket_number };
+    },
+    preview: async (q) => api.post<DraftPreview>('/v1/reports/preview', q),
+  }), []);
+
   function locate() {
     setErr(null);
     if (!navigator.geolocation) { setErr('This device has no location service; pick the nearest spot instead.'); return; }
@@ -69,9 +87,15 @@ export default function Rider() {
       <SimBanner />
       <main className="main" style={{ maxWidth: 1100, margin: '0 auto' }}>
         <div className="row between"><h1>Report a bike-lane hazard</h1><Link to="/console" className="small">City staff console →</Link></div>
+        {session.get()
+          ? <div style={{ marginBottom: 16 }}><AgentDrafts agent={agent} speedMps={stopped ? 0 : 5} version={draftsVer}
+              onChange={() => { setDraftsVer((v) => v + 1); hazards.reload(); mine.reload(); }} />
+              {!stopped && agent.pending().length > 0 && <p className="small muted">Tick “I have stopped somewhere safe” below to approve on the phone.</p>}</div>
+          : <div className="callout info small" style={{ marginBottom: 16 }}>Pair your glasses (or sign in) to let the rider assistant draft reports for you.
+              <Link to="/glasses"> Open the glasses simulator →</Link></div>}
         <div className="grid g2">
           <section className="card stack" aria-labelledby="report-h">
-            <h2 id="report-h">New report</h2>
+            <h2 id="report-h">New report (manual)</h2>
             <label className="row"><input type="checkbox" checked={stopped} onChange={(e) => setStopped(e.target.checked)} />
               <span><strong>I have stopped somewhere safe.</strong> Please don’t use your phone while riding.</span></label>
             <fieldset disabled={!stopped} className="stack" style={{ border: 0, padding: 0, margin: 0 }}>

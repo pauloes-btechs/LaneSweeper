@@ -92,6 +92,35 @@ await step('supervisor resumes a safety-paused mission from the console', async 
   await page.getByRole('region', { name: 'Safety pause' }).waitFor({ state: 'detached' });
 });
 
+await step('rider assistant drafts from the glasses; one glasses-button press approves and submits', async () => {
+  await page.goto(`${BASE}/glasses`);
+  await page.evaluate(() => localStorage.removeItem('lk.rider.drafts'));
+  await page.reload();
+  await page.getByRole('button', { name: 'Pair simulated glasses' }).click();
+  await page.getByText(/Paired device/).waitFor();
+  await page.getByRole('button', { name: 'Start ride' }).click();
+  const draft = page.getByRole('group', { name: 'Drafted report' }).first();
+  await draft.waitFor({ timeout: 20000 });
+  await draft.getByText(/snapshot\(s\)/).waitFor();
+  assert.ok(await draft.getByRole('button', { name: 'Stop to approve' }).isDisabled(), 'phone approval must be disabled while riding');
+  await page.getByRole('button', { name: 'Glasses button: approve latest draft' }).click();
+  await page.getByText(/you approved the draft; submitted as LK-\d+/).waitFor({ timeout: 20000 });
+  await page.getByRole('button', { name: 'Pause ride' }).click();
+});
+
+await step('a draft waiting on the device is approved on the Rider page once stopped', async () => {
+  await page.getByRole('button', { name: 'Start ride' }).click();
+  await page.getByRole('group', { name: 'Drafted report' }).first().waitFor({ timeout: 25000 });
+  await page.getByRole('button', { name: 'Pause ride' }).click();
+  await page.goto(`${BASE}/rider`);
+  const draft = page.getByRole('group', { name: 'Drafted report' }).first();
+  await draft.waitFor();
+  assert.ok(await draft.getByRole('button', { name: 'Stop to approve' }).isDisabled());
+  await page.getByLabel(/I have stopped somewhere safe/).check();
+  await draft.getByRole('button', { name: 'Approve & submit' }).click();
+  await page.getByText(/Submitted as LK-\d+/).waitFor({ timeout: 20000 });
+});
+
 assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join('\n')}`);
 await browser.close();
 console.log('E2E passed');

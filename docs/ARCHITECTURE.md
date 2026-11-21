@@ -79,7 +79,7 @@ Generated diagrams: [ticket](graphs/ticket.md) · [fleet](graphs/fleet.md) · [g
 | Dispatch Planning | `agents/dispatch.py`, `planning/routes.py` | Hydrogen explains trade-offs only | planner + constraints + approval + gateway |
 | Fleet Supervisor | `graphs/fleet.py`, `sim/runner.py` | none | local safety controller |
 | Robot Inspection | `agents/inspection.py` | Robotics ER 2 + Decision 1 on the after-frame | "cleared" requires after-evidence (DB check) |
-| Rider Assistance | `packages/glasses`, `graphs/glasses.py` | none on the device | debounce + conservative warning policy |
+| Rider Assistance | `packages/glasses` (`RiderReportAgent`), `graphs/glasses.py`, `rider_assist.py` | none on the device | debounce + conservative warning policy; auto-drafts reports (snapshots, GPS fix, filled form) that are sent **only after the rider approves** (one glasses-button press, or a tap once stopped); drafts expire in 15 min; the server and a DB check reject agent reports without a timely rider approval |
 | Municipal Knowledge | `knowledge.py` | Embedding 2 | approved, unexpired, tenant-filtered docs only |
 | Analytics & Reliability | `tools/read_tools.py` `export_aggregate_metrics` | none | aggregates with denominators |
 

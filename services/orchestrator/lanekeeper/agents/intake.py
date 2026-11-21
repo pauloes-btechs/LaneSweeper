@@ -44,14 +44,18 @@ def validate_identity_and_source(state: dict, deps: Deps) -> dict:
             if rep.get("device_id") else None
         if not dev or dev["revoked_at"] or dev["trust_level"] == "unverified":
             return _reject(f"{kind} reports require a registered, unrevoked device")
+    if rep.get("agent_assist") and not actor:
+        return _reject("agent-assisted reports must come from a signed-in rider or a paired device")
     if not actor:
         n = db.one("""select count(*) as n from hazard_reports
                       where reporter_hash = %s and received_at > now() - interval '1 hour'""", (reporter_hash,))["n"]
         if n >= deps.guest_reports_per_hour:
             return _reject("rate limit: too many reports from this reporter in the last hour")
     role = "authorized_reporter" if actor else "public_rider"
+    agent = rep.get("agent_assist")
+    via = f"; drafted by the rider's agent, approved by the rider via {agent['channel']}" if agent else ""
     return {"actor_role": state.get("actor_role") or role, "report": {**rep, "reporter_hash": reporter_hash},
-            "_summary": f"Source {kind} accepted as {role}; consent recorded for "
+            "_summary": f"Source {kind} accepted as {role}{via}; consent recorded for "
                         f"{'image ' if (rep.get('consent') or {}).get('share_image') else ''}"
                         f"{'location' if (rep.get('consent') or {}).get('share_location') else ''}".strip()}
 
@@ -85,16 +89,17 @@ def normalize_report(state: dict, deps: Deps) -> dict:
         cur.execute(
             """insert into hazard_reports (source_kind, source_device_id, reporter_user_id, reporter_hash, idempotency_key,
                    external_event_id, consent_id, raw_location, accuracy_m, heading_deg, speed_mps, location_source, observed_at,
-                   hazard_claimed, note, local_detector, provenance)
+                   hazard_claimed, note, local_detector, provenance, agent_assisted, rider_approval)
                values (%s,%s,%s,%s,%s,%s,%s,
                        case when %s::float8 is null then null else extensions.st_setsrid(extensions.st_makepoint(%s, %s), 4326)::extensions.geography end,
-                       %s,%s,%s,%s,%s,%s,%s,%s,%s)
+                       %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                returning id::text""",
             (rep["source_kind"], rep.get("device_id") if rep["source_kind"] in DEVICE_SOURCES else None, state.get("actor_id"),
              rep["reporter_hash"], rep["idempotency_key"], rep.get("external_event_id"), consent_id,
              loc.get("lat"), loc.get("lng"), loc.get("lat"), loc.get("accuracy_m"), loc.get("heading_deg"), loc.get("speed_mps"),
              loc.get("source") if loc else "none", rep.get("observed_at"), rep.get("hazard_claimed"), rep.get("note"),
-             db.jsonb(rep.get("local_detector")) if rep.get("local_detector") else None, rep.get("provenance", "SIMULATED")))
+             db.jsonb(rep.get("local_detector")) if rep.get("local_detector") else None, rep.get("provenance", "SIMULATED"),
+             bool(rep.get("agent_assist")), db.jsonb(rep["agent_assist"]) if rep.get("agent_assist") else None))
         report_id = cur.fetchone()["id"]
     evidence_ids, media_note = _store_media(state, deps, report_id)
     return {"report_id": report_id, "evidence_ids": evidence_ids,

@@ -23,7 +23,7 @@ The identity switcher (top right) swaps between seeded people: operator, dispatc
 
 | Time | Who | Do this | Point out |
 |---|---|---|---|
-| 0:00 | Rider | **Glasses** page: **Start ride**, wait for the advisory, stop, **Pair simulated glasses**, **Report hazard** | Detection and the warning run on the device, offline. The wording is cautious ("Possible debris ahead — slow down"). Reporting is offered only when stopped, and it sends a signed report. |
+| 0:00 | Rider | **Glasses** page: **Pair simulated glasses**, **Start ride**, wait for the advisory and the *Rider assistant* draft, press **Glasses button: approve latest draft** (or stop and approve on the **Rider** page) | Detection and the warning run on the device, offline. The wording is cautious ("Possible debris ahead — slow down"). The assistant captured the snapshots and location and filled in the report by itself; nothing was sent until the rider approved. Phone approval only works when stopped. |
 | 1:00 | Operator | **Tickets** → new LK ticket → evidence | Region-cropped image, geo match to the lane cell, advisory model verdicts labelled with provenance (`offline-fixture` without a key) |
 | 2:00 | Operator | **Fleet** → run Scenario C | Duplicate report linked to the same incident. The sources stay distinct. |
 | 2:30 | Supervisor | **Agents & Approvals** → pending dispatch | Signed, payload-hashed, simulation-only request. Approving resumes the paused graph. The dispatcher could not have approved it. |
