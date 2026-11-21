@@ -1,8 +1,8 @@
 """Copilot + tool boundary: least privilege, tenant binding, prompt-injection resistance, no silent dispatch."""
 import pytest
+from conftest import HARBOR, NYC, USERS
 from pydantic import ValidationError
 
-from conftest import HARBOR, NYC, USERS
 from lanekeeper import auth, db, knowledge
 from lanekeeper.deps import Deps
 from lanekeeper.graphs import copilot
@@ -65,7 +65,7 @@ def test_reads_are_bound_to_verified_jurisdiction():
 def test_viewer_cannot_write_and_operator_cannot_dispatch():
     with pytest.raises(ToolDenied):
         invoke("draft_work_order", ToolCtx(P("nyc_viewer"), NYC), {"ticket": "LK-9001", "kind": "robot_sweep"})
-    with pytest.raises(Exception):   # no approval exists -> gateway refuses
+    with pytest.raises(PolicyDenied):   # no proposal/approval exists -> gateway refuses
         invoke("simulate_dispatch", ToolCtx(P("nyc_operator"), NYC),
                {"proposal_id": "00000000-0000-4000-8000-000000000000", "approval_id": "00000000-0000-4000-8000-000000000000"})
 
