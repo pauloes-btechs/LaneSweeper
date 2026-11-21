@@ -1,0 +1,7 @@
+{
+  "name": "@lanekeeper/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": { "e2e": "node rider-to-verified-cleanup.e2e.mjs" },
+  "devDependencies": { "playwright-core": "1.55.0" }
+}
