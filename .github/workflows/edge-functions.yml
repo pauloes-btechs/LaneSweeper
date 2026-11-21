@@ -1,0 +1,20 @@
+name: edge-functions
+on:
+  pull_request:
+    paths: ["supabase/functions/**", ".github/workflows/edge-functions.yml"]
+  push:
+    branches: [main]
+    paths: ["supabase/functions/**"]
+permissions:
+  contents: read
+jobs:
+  deno:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno test --allow-env --allow-net=127.0.0.1 supabase/functions/request-demo/index_test.ts
+      - run: deno test --allow-env --allow-net=127.0.0.1 supabase/functions/verify-glass/index_test.ts
