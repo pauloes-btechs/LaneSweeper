@@ -71,6 +71,9 @@ export interface AgentOptions {
   provenance?: 'SIMULATED' | 'OBSERVED_TEST' | 'VERIFIED_FIELD';
 }
 
+/** Throw from `submit` when the server refused the report (not a network failure): it is not queued for retry. */
+export class SubmitRejected extends Error {}
+
 export const DRAFT_TTL_MS = 15 * 60 * 1000;     // must match the server's approval window
 export const SAVED_PROMPT = 'Saved a possible-glass report — confirm when stopped';
 
@@ -230,6 +233,11 @@ export class RiderReportAgent {
       const r = await this.o.submit(body);
       next = { ...d, status: 'submitted', approvedAt: at, channel, ticket: r.ticket_number ?? undefined, snapshots: [] };
     } catch (e) {
+      if (e instanceof SubmitRejected) {
+        next = { ...d, status: 'failed', approvedAt: at, channel, error: e.message, snapshots: [] };
+        this.update(id, () => next);
+        return next;
+      }
       this.queue.enqueue(body);
       next = { ...d, status: 'queued', approvedAt: at, channel, error: (e as Error).message, snapshots: [] };
     }

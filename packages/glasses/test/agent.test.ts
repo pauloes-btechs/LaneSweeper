@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Detection, MemoryKV, RiderReportAgent, SAVED_PROMPT, distanceM } from '../src';
+import { type Detection, MemoryKV, RiderReportAgent, SAVED_PROMPT, SubmitRejected, distanceM } from '../src';
 
 const glass = (score = 0.9): Detection => ({ label: 'possible_glass', score, specks: 8, blobs: 0, streaks: 0, box: null, model: 'lk-local-heuristic-v1', ms: 1 });
 const loc = (dLat = 0) => ({ lat: 40.7584 + dLat, lng: -73.9621, accuracy_m: 8, heading_deg: 30, speed_mps: 5, source: 'phone_gps' as const });
@@ -111,5 +111,13 @@ describe('RiderReportAgent', () => {
     const { draft } = agent.observe(glass(), true, 4, { id: 'g' }, loc(), false)!;
     await agent.refreshPreview(draft.id);
     expect(agent.get(draft.id)?.preview?.nearby_open?.ticket_number).toBe('LK-101');
+  });
+
+  it('a server rejection fails the draft instead of queueing it for retry', async () => {
+    const { agent } = setup({ submit: async () => { throw new SubmitRejected('agent-assisted reports must come from a signed-in rider'); } });
+    const { draft } = agent.observe(glass(), true, 4, { id: 'g' }, loc(), false)!;
+    const r = await agent.approve(draft.id, 'phone_tap', 0);
+    expect(r).toMatchObject({ status: 'failed', snapshots: [] });
+    expect(agent.queue.items()).toHaveLength(0);
   });
 });
