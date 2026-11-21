@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import subprocess
 import tempfile
@@ -28,6 +29,7 @@ from .models import budget
 from .models.google import GoogleClient, ModelError, interaction_status, media_output
 from .storage import REPO_ROOT
 
+log = logging.getLogger("lanekeeper.media")
 VIDEO_MODEL = os.environ.get("LK_VIDEO_MODEL", "gemini-omni-1.1-flash")
 IMAGE_MODEL = os.environ.get("LK_IMAGE_MODEL", "gemini-nano-banana-2.1")
 MAX_BYTES = 50 * 1024 * 1024          # Supabase Free per-file limit
@@ -133,6 +135,11 @@ class MediaStore:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_bytes(data)
 
+    def get(self, rel: str) -> bytes:
+        if self.remote:
+            return self._req("GET", f"object/media/{rel}")
+        return (self.root / rel).read_bytes()
+
     def signed_url(self, rel: str, ttl_s: int = 3600) -> str:
         if self.remote:
             out = json.loads(self._req("POST", f"object/sign/media/{rel}", json.dumps({"expiresIn": ttl_s}).encode(),
@@ -172,12 +179,13 @@ def catalog(*, with_urls: bool = True) -> list[dict]:
         item = {"id": a.id, "kind": a.kind, "use_case": a.use_case, "label": a.label, "title": a.title,
                 "resolution": r.get("resolution") or a.resolution, "status": status, "stale": stale,
                 "est_usd": a.est_usd, "bytes": r.get("bytes"), "model": r.get("model"), "error": r.get("error"),
-                "generated_at": r.get("generated_at"), "provenance": "AI_GENERATED"}
+                "generated_at": r.get("generated_at"), "web_bytes": r.get("web_bytes"), "provenance": "AI_GENERATED"}
         if store and status == "ready" and r.get("storage_path"):
             try:
                 item["url"] = store.signed_url(r["storage_path"])
+                item["web_url"] = store.signed_url(r["web_path"]) if r.get("web_path") else None
             except (urllib.error.URLError, KeyError, ValueError):
-                item["url"] = None
+                item["url"] = item["web_url"] = None
         out.append(item)
     return out
 
@@ -219,6 +227,26 @@ def fit_video(data: bytes, limit: int = MAX_BYTES) -> bytes:
     raise MediaError("clip still over 50 MB after re-encoding; use 1080p for this clip")
 
 
+def web_variant(data: bytes, max_px: int = 2048) -> bytes:
+    """2K WebP for pages and the 3D twin; the 4K original stays for download and Ultra mode."""
+    import io
+
+    from PIL import Image as PILImage
+    im = PILImage.open(io.BytesIO(data)).convert("RGB")
+    im.thumbnail((max_px, max_px), PILImage.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    im.save(buf, "WEBP", quality=86, method=4)
+    return buf.getvalue()
+
+
+def ensure_web(a: Asset, rel: str, data: bytes | None = None) -> None:
+    store = MediaStore()
+    web = web_variant(data if data is not None else store.get(rel))
+    web_rel = rel.rsplit(".", 1)[0] + "-2k.webp"
+    store.put(web_rel, web, "image/webp")
+    db.one("update media_assets set web_path=%s, web_bytes=%s, updated_at=now() where id=%s returning 1", (web_rel, len(web), a.id))
+
+
 def _save(a: Asset, data: bytes, mime: str, model: str, resolution: str) -> dict:
     if mime.startswith("video/"):
         data = fit_video(data)
@@ -230,6 +258,11 @@ def _save(a: Asset, data: bytes, mime: str, model: str, resolution: str) -> dict
     MediaStore().put(rel, data, mime)
     _upsert(a, status="ready", model=model, resolution=resolution, prompt_hash=prompt_hash(a), storage_path=rel,
             mime_type=mime, bytes=len(data), interaction_id=None, error=None, generated_at=time.strftime("%Y-%m-%dT%H:%M:%SZ"))
+    if a.kind != "video":
+        try:
+            ensure_web(a, rel, data)
+        except Exception as e:   # noqa: BLE001  (the 4K original is saved; the light variant can be backfilled by poll)
+            log.warning("web variant for %s failed: %s", a.id, type(e).__name__)
     return {"id": a.id, "status": "ready", "bytes": len(data)}
 
 
@@ -282,6 +315,9 @@ def poll(asset_id: str, *, client: GoogleClient | None = None) -> dict:
     r = _row(asset_id) if a else None
     if not a or not r:
         raise MediaError("unknown asset")
+    if r["status"] == "ready" and a.kind != "video" and not r.get("web_path") and r.get("storage_path"):
+        ensure_web(a, r["storage_path"])   # backfill the light variant without regenerating
+        return {"id": a.id, "status": "ready", "web": True}
     if r["status"] != "generating" or not r["interaction_id"]:
         return {"id": a.id, "status": r["status"]}
     client = client or _client()
