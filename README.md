@@ -1,5 +1,7 @@
 # LaneKeeper OS
 
+**▶ [Watch the demo video (71 s, 1080p)](https://fvvxmvtoozpxmdkdumrx.supabase.co/storage/v1/object/public/demo/lanekeeper-os-demo.mp4)** · AI-generated footage is labelled; every robot and tenant is simulated.
+
 An agent-orchestrated operating system for bike-lane maintenance. Riders and smart glasses report hazards. LangGraph agents verify, deduplicate and prioritise them. City staff approve simulated robot missions. A digital twin of the LK-01 sweeper carries them out, and independent verification decides what can be published as cleared.
 
 > **Status: simulation-first alpha.** There is no physical robot or glasses integration in the field. Every robot, glasses and mission event in the demo is labelled `SIMULATED`. No software path in this repository can move a physical robot ([why](docs/ROBOT_SAFETY_BOUNDARY.md)).
