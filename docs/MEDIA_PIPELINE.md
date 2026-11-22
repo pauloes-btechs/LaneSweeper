@@ -41,6 +41,6 @@ The non-AI parts are rendered by `scripts/demo/` against a local demo stack (`re
 The server validates the manifest, cuts and captions the AI parts with ffmpeg, stream-copies the join, and uploads one 1080p MP4 to the
 public `demo` bucket (that bucket holds only the reel):
 
-`https://<project>.supabase.co/storage/v1/object/public/demo/lanekeeper-os-demo.mp4`
+[`lanekeeper-os-demo.mp4`](https://fvvxmvtoozpxmdkdumrx.supabase.co/storage/v1/object/public/demo/lanekeeper-os-demo.mp4) (first published 2026-11-22: 12 parts, 71.6 s, 17.7 MB, built in 52 s)
 
 To refresh it: regenerate any assets, re-render `demo-media/reel/` if the UI changed, then press the button again.
