@@ -24,7 +24,6 @@ LaneKeeper OS is a simulation-first platform for bike-lane hazards. Riders and s
 |---|---|
 | `apps/site/` | Original LaneKeeper website (unchanged; own lockfile) |
 | `apps/console/` | React + TS command centre, rider PWA, glasses and digital-twin simulators |
-| `packages/domain/` | Shared TypeScript contracts (zod) |
 | `packages/glasses/` | `SmartGlassesAdapter` contract, simulator, local candidate detector |
 | `services/orchestrator/` | Python: LangGraph graphs, policy engine, approvals, model router, simulator, job runner, HTTP API |
 | `supabase/migrations/` | Ordered SQL, original + additive |
