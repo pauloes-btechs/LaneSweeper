@@ -77,7 +77,7 @@ def fixture_image(fid: str):
 
 
 @router.post("/v1/reports")
-def submit_report(body: dict, p: Principal = Depends(principal)):
+def submit_report(body: dict, request: Request, p: Principal = Depends(principal)):
     """Rider app / guest report. Validated, rate-limited, idempotent. Returns status, never other people's data."""
     try:
         rep = InboundReport.model_validate(body)
@@ -85,7 +85,7 @@ def submit_report(body: dict, p: Principal = Depends(principal)):
         raise HTTPException(422, json.loads(e.json(include_input=False))) from e
     if rep.source_kind not in ("rider_app", "rider_guest"):
         raise HTTPException(400, "this endpoint accepts rider reports only")
-    r = workflows.submit_report(rep.model_dump(mode="json"), p)
+    r = workflows.submit_report(rep.model_dump(mode="json"), p, client_ip=request.client.host if request.client else None)
     return {"report_id": r["report_id"], "status": "rejected" if r["outcome"] == "rejected" else "received",
             "ticket_number": r["ticket_number"], "needs_more_evidence": bool(r["interrupt"] and r["interrupt"].get("awaiting")),
             "errors": [e["error"] for e in r["errors"]] if r["outcome"] == "rejected" else []}

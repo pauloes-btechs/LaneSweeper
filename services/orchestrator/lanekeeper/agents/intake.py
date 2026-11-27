@@ -36,7 +36,8 @@ def validate_identity_and_source(state: dict, deps: Deps) -> dict:
     actor = state.get("actor_id")
     kind = rep["source_kind"]
     salt = get_settings().signing_secret
-    reporter_hash = short_hash(actor or rep.get("device_id") or rep["idempotency_key"], salt)
+    # Guests are keyed by client IP, never by the client-chosen idempotency key. Only in-process callers have no IP.
+    reporter_hash = short_hash(actor or rep.get("device_id") or state.get("client_ip") or rep["idempotency_key"], salt)
     if kind in STAFF_SOURCES and not actor:
         return _reject("operator reports require an authenticated staff member")
     if kind in DEVICE_SOURCES:

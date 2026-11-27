@@ -53,7 +53,8 @@ def _result(graph, thread_id: str, out: dict) -> dict:
             "severity": vals.get("severity"), "remediation_status": vals.get("remediation_status"), "errors": vals.get("errors", [])}
 
 
-def submit_report(report: dict, principal: Principal, *, scenario: str | None = None, deps: Deps | None = None) -> dict:
+def submit_report(report: dict, principal: Principal, *, scenario: str | None = None, client_ip: str | None = None,
+                  deps: Deps | None = None) -> dict:
     """Entry for riders, glasses, operators and robots. `principal` is server-verified (anonymous allowed)."""
     key = str(report.get("idempotency_key") or "")
     thread_id = make_thread_id("intake", "ticket", key or "missing")
@@ -64,7 +65,7 @@ def submit_report(report: dict, principal: Principal, *, scenario: str | None = 
     run_id, trace_id = start_run(workflow="ticket", workflow_version=WORKFLOW_VERSION, thread_id=thread_id,
                                  jurisdiction_id=None, actor_id=principal.user_id)
     init = ticket.initial_state(report=report, actor_id=principal.user_id, thread_id=thread_id, run_id=run_id,
-                                trace_id=trace_id, scenario=scenario)
+                                trace_id=trace_id, scenario=scenario, client_ip=client_ip)
     out = g.invoke(init, _cfg(thread_id))
     return _result(g, thread_id, out)
 

@@ -33,6 +33,7 @@ class LaneKeeperState(TypedDict, total=False):
     jurisdiction_id: str
     city_id: str
     actor_id: str | None
+    client_ip: str | None          # transport peer, for anonymous rate limiting only
     actor_role: str | None
     source_provenance: str
     # report and case
