@@ -91,9 +91,10 @@ def ticket(ref: str, p: Principal = Depends(principal)):
                                  where l.incident_id=%s order by r.received_at""", (t["incident_id"],)):
             r["media"] = [{**m, "url": store.signed_url(m["path"])} for m in (r["media"] or [])]
             t["reports"].append(r)
-    run = db.one("""select r.id::text, r.thread_id, r.status from agent_runs r
-                    join agent_events e on e.run_id=r.id where e.summary like %s order by r.started_at limit 1""",
-                 (f"%{t['number']}%",))
+    # \m..\M: whole ticket number only, so LK-101 never matches LK-1010.
+    run = db.one(r"""select r.id::text, r.thread_id, r.status from agent_runs r join agent_events e on e.run_id=r.id
+                     where r.jurisdiction_id=%s and e.summary ~ ('\m' || %s || '\M') order by r.started_at limit 1""",
+                 (t["jurisdiction_id"], t["number"]))
     t["agent_run"] = run
     return t
 

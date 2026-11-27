@@ -85,6 +85,20 @@ def test_cross_tenant_ticket_access_is_404_and_jurisdiction_param_checked(client
     assert r.status_code == 403
 
 
+
+def test_ticket_agent_run_ignores_other_tenants_and_longer_numbers(client):
+    from conftest import HARBOR
+    client.post("/v1/reports", json=rider_report(seq=147))
+    num = db.one("select number from tickets where jurisdiction_id='11111111-1111-4111-8111-111111111111' order by created_at desc limit 1")["number"]
+    for jid, summary in ((HARBOR, f"Created ticket {num} (decoy)"), ("11111111-1111-4111-8111-111111111111", f"Created ticket {num}0 (decoy)")):
+        run = db.one("""insert into agent_runs (workflow, workflow_version, thread_id, jurisdiction_id, trace_id, status, started_at)
+                        values ('ticket', 'test', %s, %s, 'decoy', 'succeeded', now() - interval '1 day') returning id::text""",
+                     (f"decoy-{uuid.uuid4().hex}", jid))["id"]
+        db.one("insert into agent_events (run_id, jurisdiction_id, seq, node, kind, summary) values (%s,%s,1,'create_ticket','exit',%s) returning 1",
+               (run, jid, summary))
+    run = client.get(f"/v1/tickets/{num}", headers=H("nyc_operator")).json()["agent_run"]
+    assert run and not run["thread_id"].startswith("decoy-")
+
 def test_viewer_sees_ticket_but_not_evidence(client):
     num = db.one("select number from tickets where jurisdiction_id='11111111-1111-4111-8111-111111111111' order by created_at desc limit 1")["number"]
     t = client.get(f"/v1/tickets/{num}", headers=H("nyc_viewer")).json()
