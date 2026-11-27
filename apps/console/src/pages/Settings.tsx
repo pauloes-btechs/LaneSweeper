@@ -13,7 +13,8 @@ interface ModelStatus {
 }
 
 function Body({ me }: { me: Me }) {
-  const s = useApi<ModelStatus>('/v1/models/status', { poll: 6000 });
+  const adminJid = me.memberships.find((m) => m.role === 'city_admin')?.id;
+  const s = useApi<ModelStatus>(adminJid ? `/v1/models/status?jurisdiction=${adminJid}` : null, { poll: 6000 });
   return (
     <div className="stack" style={{ gap: 16 }}>
       <h1>Settings</h1>
@@ -22,16 +23,16 @@ function Body({ me }: { me: Me }) {
           <table className="data small"><thead><tr><th>Jurisdiction</th><th>Role</th></tr></thead><tbody>{me.memberships.map((m) => <tr key={m.id + m.role}><td>{m.name}</td><td>{m.role}</td></tr>)}</tbody></table>
           <IdentityPicker /><p className="small muted">Roles come from server-side memberships. Changing a token’s claims cannot grant access.</p></div>
         <div className="card stack"><h3>AI models</h3>
-          {s.error ? <ErrorState error={s.error} /> : !s.data ? <Loading /> : <>
+          {!adminJid ? <p className="muted small">City admins only.</p> : s.error ? <ErrorState error={s.error} /> : !s.data ? <Loading /> : <>
             <div className="row"><span>Mode</span><Chip v={s.data.live ? 'online' : 'offline'} /><span className="small muted">{s.data.live ? 'Live Gemini routes within caps' : 'AI Offline Mode: labelled fixtures/templates'}</span></div>
             <div className="small">Billable calls switch: <strong>{s.data.billable_enabled ? 'ON' : 'OFF'}</strong> · caps {s.data.per_minute_cap}/min, {s.data.daily_cap}/day</div>
             <table className="data small"><thead><tr><th>Route</th><th>Models</th><th>API</th><th>Offline</th></tr></thead><tbody>
               {Object.entries(s.data.routes).map(([k, r]) => <tr key={k}><td className="mono">{k}</td><td className="mono">{r.candidates.join(', ')}</td><td>{r.api}</td><td>{r.offline}</td></tr>)}</tbody></table></>}
         </div>
       </div>
-      {me.memberships.some((m) => m.role === 'city_admin') && <MediaPanel jurisdiction={me.memberships.find((m) => m.role === 'city_admin')?.id} />}
+      {adminJid && <MediaPanel jurisdiction={adminJid} />}
       <div className="card"><h3>Recent model calls (no prompts or images are logged)</h3>
-        {!s.data ? <Loading /> : s.data.recent_calls.length === 0 ? <p className="muted small">None yet.</p> :
+        {!adminJid ? <p className="muted small">City admins only.</p> : !s.data ? <Loading /> : s.data.recent_calls.length === 0 ? <p className="muted small">None yet.</p> :
           <table className="data small"><thead><tr><th>When</th><th>Route</th><th>Model</th><th>Mode</th><th>Outcome</th><th>Latency</th></tr></thead><tbody>
             {s.data.recent_calls.map((c, i) => <tr key={i}><td>{ago(c.at)}</td><td className="mono">{c.route}</td><td className="mono">{c.model}</td><td>{c.mode}</td><td><Chip v={c.outcome === 'ok' ? 'succeeded' : c.outcome} /></td><td>{c.latency_ms ?? '—'} ms</td></tr>)}</tbody></table>}
       </div>
