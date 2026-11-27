@@ -10,10 +10,12 @@ from langgraph.types import Command
 
 from . import WORKFLOW_VERSION, db
 from .auth import Principal, reload
+from .config import get_settings
 from .deps import Deps
 from .graphs import ticket
 from .graphs.checkpoint import get_checkpointer
 from .graphs.state import make_thread_id
+from .hashing import short_hash
 from .policy.engine import PolicyDenied, SideEffect, check
 from .sim import runner
 from .tracing import event, set_status, start_run
@@ -65,7 +67,8 @@ def submit_report(report: dict, principal: Principal, *, scenario: str | None = 
     run_id, trace_id = start_run(workflow="ticket", workflow_version=WORKFLOW_VERSION, thread_id=thread_id,
                                  jurisdiction_id=None, actor_id=principal.user_id)
     init = ticket.initial_state(report=report, actor_id=principal.user_id, thread_id=thread_id, run_id=run_id,
-                                trace_id=trace_id, scenario=scenario, client_ip=client_ip)
+                                trace_id=trace_id, scenario=scenario,
+                                client_ip=short_hash(client_ip, get_settings().signing_secret) if client_ip else None)  # raw IPs never reach checkpoints
     out = g.invoke(init, _cfg(thread_id))
     return _result(g, thread_id, out)
 
