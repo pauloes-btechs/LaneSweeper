@@ -54,6 +54,10 @@ class EvidenceStore:
     def get(self, rel: str) -> bytes:
         raise NotImplementedError
 
+    def delete(self, rel: str) -> None:
+        """Remove an object. Already gone counts as deleted."""
+        raise NotImplementedError
+
     def signed_url(self, rel: str, ttl_s: int = 120) -> str:
         exp = int(time.time()) + ttl_s
         sig = sign(get_settings().signing_secret, "evidence", rel, exp)
@@ -81,6 +85,10 @@ class LocalEvidenceStore(EvidenceStore):
         if self.root.resolve() not in p.parents or not p.is_file():
             raise EvidenceError("not found")
         return p.read_bytes()
+
+    def delete(self, rel: str) -> None:
+        self._rel_ok(rel)
+        (self.root / rel).unlink(missing_ok=True)
 
 
 class SupabaseEvidenceStore(EvidenceStore):
@@ -118,6 +126,13 @@ class SupabaseEvidenceStore(EvidenceStore):
             return self._req("GET", rel)
         except urllib.error.HTTPError as e:
             raise EvidenceError("not found") from e
+
+    def delete(self, rel: str) -> None:
+        try:
+            self._req("DELETE", rel)
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise EvidenceError(f"evidence delete failed ({e.code})") from e
 
 
 def evidence_store() -> EvidenceStore:

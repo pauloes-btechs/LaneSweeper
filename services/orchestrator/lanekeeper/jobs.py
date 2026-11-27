@@ -13,6 +13,7 @@ from collections.abc import Callable
 
 from . import db, knowledge
 from .deps import Deps
+from .storage import EvidenceError
 
 HANDLERS: dict[str, Callable[[dict, Deps], None]] = {}
 
@@ -66,8 +67,8 @@ def _retention(job: dict, deps: Deps) -> None:
                           where r.retention_until < now() limit 500""")
     for r in rows:
         try:
-            (deps.store.root / r["storage_path"]).unlink(missing_ok=True)
-        except OSError:
+            deps.store.delete(r["storage_path"])
+        except (OSError, EvidenceError):
             continue
         db.one("delete from report_media where id=%s returning 1", (r["id"],))
     db.one("update hazard_reports set raw_location = null, note = null where retention_until < now() and raw_location is not null returning 1")
