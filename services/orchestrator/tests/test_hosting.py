@@ -120,3 +120,24 @@ def test_serverless_does_not_hold_db_connections(monkeypatch):
     assert config.hold_connections()
     assert not isinstance(config.make_pool("postgresql://x@localhost/y", max_size=1, kwargs={}), NullConnectionPool) or False
     assert issubclass(NullConnectionPool, ConnectionPool)
+
+
+def test_retention_sweep_deletes_supabase_evidence(monkeypatch):
+    from lanekeeper import jobs
+    from lanekeeper.deps import Deps
+    calls, deleted = [], []
+
+    def fake(req, timeout):
+        calls.append((req.get_method(), req.full_url))
+        if req.full_url.endswith("gone.jpeg"):
+            raise urllib.error.HTTPError(req.full_url, 404, "missing", {}, None)
+        return _Resp(b"{}")
+
+    monkeypatch.setattr(storage.urllib.request, "urlopen", fake)
+    monkeypatch.setattr(jobs.db, "all_rows", lambda *a: [{"id": "m1", "storage_path": "nyc/ab/old.jpeg"},
+                                                         {"id": "m2", "storage_path": "nyc/ab/gone.jpeg"}])
+    monkeypatch.setattr(jobs.db, "one", lambda sql, params=None: deleted.append(params) if "delete" in sql else None)
+    jobs.HANDLERS["retention_sweep"]({}, Deps(store=storage.SupabaseEvidenceStore("https://abc.supabase.co", "svc")))
+    assert calls == [("DELETE", "https://abc.supabase.co/storage/v1/object/evidence/nyc/ab/old.jpeg"),
+                     ("DELETE", "https://abc.supabase.co/storage/v1/object/evidence/nyc/ab/gone.jpeg")]
+    assert deleted == [("m1",), ("m2",)]      # an object already gone still clears its row
