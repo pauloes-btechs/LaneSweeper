@@ -155,3 +155,14 @@ def test_console_safety_resume_path_over_http(client):
     assert client.post(f"/v1/threads/{m['thread_id']}/resume", json=body, headers=H("nyc_operator")).status_code == 403
     done = client.post(f"/v1/threads/{m['thread_id']}/resume", json=body, headers=H("nyc_supervisor")).json()
     assert done["status"] == "done"
+
+
+def test_guest_rate_limit_keys_on_client_ip_not_idempotency_key(client):
+    from lanekeeper.agents import intake
+    from lanekeeper.deps import Deps
+    ids = [client.post("/v1/reports", json=rider_report(seq=150 + i)).json()["report_id"] for i in range(2)]
+    hashes = {r["reporter_hash"] for r in db.all_rows("select reporter_hash from hazard_reports where id = any(%s::uuid[])", (ids,))}
+    assert len(hashes) == 1        # fresh idempotency keys, same client
+    state = {"report": rider_report(), "client_ip": "testclient"}
+    assert intake.validate_identity_and_source(state, Deps(guest_reports_per_hour=2))["outcome"] == "rejected"
+    assert "outcome" not in intake.validate_identity_and_source({**state, "client_ip": "198.51.100.7"}, Deps(guest_reports_per_hour=2))

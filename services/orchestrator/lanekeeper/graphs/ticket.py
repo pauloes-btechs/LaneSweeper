@@ -312,8 +312,8 @@ def _call(fn, deps, state):
 
 
 def initial_state(*, report: dict, actor_id: str | None, thread_id: str, run_id: str, trace_id: str,
-                  scenario: str | None = None) -> dict:
+                  scenario: str | None = None, client_ip: str | None = None) -> dict:
     """`scenario` is chosen server-side by the demo controller (twin scenario), never by the reporter."""
     return {"scenario": scenario, "workflow_version": WORKFLOW_VERSION, "state_version": STATE_VERSION, "thread_id": thread_id, "run_id": run_id,
-            "trace_id": trace_id, "report": report, "actor_id": actor_id, "simulation_mode": True, "retries": 0,
+            "trace_id": trace_id, "report": report, "actor_id": actor_id, "client_ip": client_ip, "simulation_mode": True, "retries": 0,
             "replay_mode": False, "messages": [], "errors": []}
