@@ -51,6 +51,17 @@ Deno.test("rate limited by ip", async () => {
   assertEquals(rows.length, 0);
 });
 
+Deno.test("ip hash ignores client-supplied x-forwarded-for entries and prefers cf-connecting-ip", async () => {
+  const hashFor = async (headers: Record<string, string>) => {
+    const { db, rows } = fakeDb();
+    await handleRequestDemo(new Request("http://x/request-demo", { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN, ...headers }, body: JSON.stringify(good) }), db, "salt");
+    return rows[0].ip_hash;
+  };
+  const real = await hashFor({ "x-forwarded-for": "203.0.113.9" });
+  assertEquals(await hashFor({ "x-forwarded-for": "198.51.100.1, 203.0.113.9" }), real);
+  assertEquals(await hashFor({ "x-forwarded-for": "198.51.100.1", "cf-connecting-ip": "203.0.113.9" }), real);
+});
+
 Deno.test("unknown origin is refused", async () => {
   const { db } = fakeDb();
   const res = await handleRequestDemo(post(good, "https://evil.example"), db, "salt");

@@ -85,7 +85,8 @@ export async function handleRequestDemo(req: Request, db: Db, salt: string, extr
   const { fields, errors } = validate(body);
   if (errors) return reply(422, { error: "Some fields need attention.", fields: errors });
 
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "unknown";
+  // The platform sets cf-connecting-ip and appends the peer to x-forwarded-for; earlier entries are client-supplied.
+  const ip = req.headers.get("cf-connecting-ip") || (req.headers.get("x-forwarded-for") ?? "").split(",").at(-1)?.trim() || "unknown";
   const ipHash = await sha256(`${salt}:ip:${ip}`);
   const emailHash = await sha256(`${salt}:email:${fields!.email}`);
 
