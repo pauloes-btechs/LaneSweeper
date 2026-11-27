@@ -180,3 +180,9 @@ def test_guest_rate_limit_keys_on_client_ip_not_idempotency_key(client):
     state = {"report": rider_report(), "client_ip": "testclient"}
     assert intake.validate_identity_and_source(state, Deps(guest_reports_per_hour=2))["outcome"] == "rejected"
     assert "outcome" not in intake.validate_identity_and_source({**state, "client_ip": "198.51.100.7"}, Deps(guest_reports_per_hour=2))
+
+
+
+def test_model_status_needs_admin_policy(client):
+    assert client.get("/v1/models/status", headers=H("nyc_operator")).status_code == 403
+    assert client.get("/v1/models/status", headers=H("nyc_admin")).status_code == 200

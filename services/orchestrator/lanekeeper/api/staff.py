@@ -224,8 +224,8 @@ def lane_status(jurisdiction: str | None = None, p: Principal = Depends(principa
 
 
 @router.get("/models/status")
-def model_status(p: Principal = Depends(principal)):
-    staff(p)
+def model_status(jurisdiction: str | None = None, p: Principal = Depends(principal)):
+    need(p, jurisdiction_for(staff(p), jurisdiction), "admin.policy")
     from ..config import get_settings
     from ..models.budget import billable_enabled
     from ..models.router import routes
