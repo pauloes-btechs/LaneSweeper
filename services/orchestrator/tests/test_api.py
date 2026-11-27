@@ -186,3 +186,19 @@ def test_guest_rate_limit_keys_on_client_ip_not_idempotency_key(client):
 def test_model_status_needs_admin_policy(client):
     assert client.get("/v1/models/status", headers=H("nyc_operator")).status_code == 403
     assert client.get("/v1/models/status", headers=H("nyc_admin")).status_code == 200
+
+
+
+def test_demo_fleet_helpers_only_touch_the_demo_jurisdiction(client):
+    from conftest import HARBOR
+    db.one("insert into robots (id, jurisdiction_id, name) values ('LK-SIM-09', %s, 'other tenant robot') returning 1", (HARBOR,))
+    db.one("""insert into robot_status (robot_id, jurisdiction_id, state, connectivity, battery_pct)
+              values ('LK-SIM-09', %s, 'charging', 'degraded', 10) returning 1""", (HARBOR,))
+    try:
+        assert client.post("/v1/demo/reset-fleet").status_code == 200
+        assert client.post("/v1/demo/fleet-size/2").status_code == 200
+        row = db.one("select state, connectivity, battery_pct from robot_status where robot_id='LK-SIM-09'")
+        assert row == {"state": "charging", "connectivity": "degraded", "battery_pct": 10}
+    finally:
+        db.one("delete from robot_status where robot_id='LK-SIM-09' returning 1")
+        db.one("delete from robots where id='LK-SIM-09' returning 1")

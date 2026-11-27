@@ -9,6 +9,7 @@ from ..auth import mint_dev_token
 from ..config import demo_identities_allowed
 
 router = APIRouter(prefix="/v1/demo")
+NYC = "11111111-1111-4111-8111-111111111111"   # the fictional demo jurisdiction; demo helpers never touch other tenants
 
 SEEDED = {
     "operator": ("c0000000-0000-4000-8000-000000000001", "NYC city operator"),
@@ -44,9 +45,10 @@ def token(who: str):
 def reset_fleet():
     """Soft reset for live demos: abort unfinished simulated missions and dock robots at full charge."""
     db.one("""update missions set status='aborted', abort_reason='demo reset', ended_at=now()
-              where status in ('dispatched','running','paused_safety','returning') returning 1""")
+              where jurisdiction_id=%s and status in ('dispatched','running','paused_safety','returning') returning 1""", (NYC,))
     db.one("""update robot_status rs set state='docked', connectivity='online', battery_pct=100, hopper_pct=0, mission_id=null, cell_id=null,
-                     position=(select d.location from robots r join depots d on d.id=r.home_depot_id where r.id=rs.robot_id) returning 1""")
+                     position=(select d.location from robots r join depots d on d.id=r.home_depot_id where r.id=rs.robot_id)
+              where rs.jurisdiction_id=%s returning 1""", (NYC,))
     return {"ok": True}
 
 
@@ -102,17 +104,16 @@ def fleet_size(n: int):
     """Adjust the SIMULATED fleet (2..10). Extra robots are LK-SIM-03.. at alternating depots; removal takes them offline."""
     if not 2 <= n <= 10:
         raise HTTPException(400, "fleet size must be 2..10")
-    nyc = "11111111-1111-4111-8111-111111111111"
     for k in range(3, 11):
         rid = f"LK-SIM-{k:02d}"
         depot = "NYC-DEPOT-E20" if k % 2 else "NYC-DEPOT-E60"
         if k <= n:
             db.one("""insert into robots (id, jurisdiction_id, name, home_depot_id) values (%s,%s,%s,%s) on conflict (id) do nothing returning 1""",
-                   (rid, nyc, f"Simulated robot {k:02d}", depot))
+                   (rid, NYC, f"Simulated robot {k:02d}", depot))
             db.one("insert into robot_capabilities (robot_id) values (%s) on conflict do nothing returning 1", (rid,))
             db.one("""insert into robot_status (robot_id, jurisdiction_id, position)
                       select %s, %s, location from depots where id=%s on conflict (robot_id) do update set connectivity='online', state='docked'
-                      returning 1""", (rid, nyc, depot))
+                      where robot_status.jurisdiction_id = excluded.jurisdiction_id returning 1""", (rid, NYC, depot))
         else:
-            db.one("update robot_status set connectivity='lost', state='offline' where robot_id=%s returning 1", (rid,))
+            db.one("update robot_status set connectivity='lost', state='offline' where robot_id=%s and jurisdiction_id=%s returning 1", (rid, NYC))
     return {"simulated_fleet": n}
