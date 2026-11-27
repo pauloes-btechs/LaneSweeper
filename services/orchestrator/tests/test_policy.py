@@ -97,6 +97,14 @@ def test_requester_cannot_approve_own_request():
     approvals.decide(P("nyc_supervisor2"), ref.approval_id, True, "second supervisor approves")
 
 
+
+def test_expired_approval_is_marked_expired_on_decide():
+    ref = new_request()
+    db.one("update approval_requests set expires_at = now() - interval '1 minute' where id=%s returning 1", (ref.approval_id,))
+    with pytest.raises(approvals.ApprovalError, match="expired"):
+        approvals.decide(P("nyc_supervisor"), ref.approval_id, True, "too late")
+    assert db.one("select status from approval_requests where id=%s", (ref.approval_id,))["status"] == "expired"
+
 def test_denied_approval_never_revalidates():
     ref = new_request()
     approvals.decide(P("nyc_supervisor"), ref.approval_id, False, "route crosses closure")
