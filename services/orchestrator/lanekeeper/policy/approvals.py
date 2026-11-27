@@ -94,22 +94,24 @@ def decide(principal: Principal, approval_id: str, approve: bool, reason: str, *
         a = cur.fetchone()
         if a["status"] != "pending":
             raise ApprovalError(f"approval is {a['status']}")
-        if a["expires_at"] <= datetime.now(UTC):
-            cur.execute("update approval_requests set status='expired' where id=%s", (approval_id,))
-            raise ApprovalError("approval expired")
-        if a["requested_by_user"] and str(a["requested_by_user"]) == principal.user_id:
-            raise ApprovalError("separation of duties: the requester cannot approve")
-        status = "approved" if approve else "denied"
-        a["approver_id"] = principal.user_id
-        sig = _signature(a)
-        cur.execute("""update approval_requests set status=%s, approver_id=%s, decision_reason=%s, decided_at=now(), signature=%s
-                       where id=%s returning id::text, operation_id::text, status, payload_hash, expires_at, approver_id::text""",
-                    (status, principal.user_id, reason.strip()[:500], sig, approval_id))
-        out = cur.fetchone()
-        audit(cur, actor=principal.user_id, action=f"approval.{status}", outcome="allowed",
-              jurisdiction_id=a["jurisdiction_id"], target=approval_id, reason=reason[:200], trace_id=trace_id,
-              detail={"action": a["action"], "payload_hash": a["payload_hash"]})
-        return out
+        if a["expires_at"] > datetime.now(UTC):
+            if a["requested_by_user"] and str(a["requested_by_user"]) == principal.user_id:
+                raise ApprovalError("separation of duties: the requester cannot approve")
+            status = "approved" if approve else "denied"
+            a["approver_id"] = principal.user_id
+            sig = _signature(a)
+            cur.execute("""update approval_requests set status=%s, approver_id=%s, decision_reason=%s, decided_at=now(), signature=%s
+                           where id=%s returning id::text, operation_id::text, status, payload_hash, expires_at, approver_id::text""",
+                        (status, principal.user_id, reason.strip()[:500], sig, approval_id))
+            out = cur.fetchone()
+            audit(cur, actor=principal.user_id, action=f"approval.{status}", outcome="allowed",
+                  jurisdiction_id=a["jurisdiction_id"], target=approval_id, reason=reason[:200], trace_id=trace_id,
+                  detail={"action": a["action"], "payload_hash": a["payload_hash"]})
+            return out
+    # Expired: record it in its own transaction so the error below does not roll it back.
+    with db.tx() as cur:
+        cur.execute("update approval_requests set status='expired' where id=%s and status='pending'", (approval_id,))
+    raise ApprovalError("approval expired")
 
 
 def revoke(principal: Principal, approval_id: str, reason: str) -> None:
